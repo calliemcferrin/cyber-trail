@@ -276,3 +276,69 @@ body::before {
 @media (prefers-reduced-motion: reduce) {
   .crt, .title, .blink { animation: none; }
 }
+
+/* ============================================================
+   RESPONSIVE / MOBILE
+   The desktop look is unchanged; these rules only adjust layout
+   on smaller screens so the game is comfortable on a phone.
+   ============================================================ */
+
+/* Never allow horizontal scroll from glows/shadows. */
+html, body { max-width: 100%; }
+img, svg { max-width: 100%; height: auto; }
+
+/* Honor iPhone notch / home-bar safe areas. */
+.screen {
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+}
+.footer {
+  padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+}
+
+/* Tablets and small laptops */
+@media (max-width: 760px) {
+  :root { font-size: 16px; }
+  .screen { padding-top: 1.6rem; padding-bottom: 5.5rem; }
+  .card-grid { grid-template-columns: 1fr; gap: 0.85rem; }
+}
+
+/* Phones */
+@media (max-width: 600px) {
+  :root { font-size: 15.5px; }
+
+  .screen { padding: 1.25rem 1rem 6rem; }
+
+  /* Headings scale down a bit more and the glitch offset shrinks
+     so it doesn't bleed past the screen edge. */
+  .title {
+    text-shadow:
+      0 0 5px var(--green), 0 0 14px var(--green),
+      2px 0 var(--purple), -2px 0 var(--blue);
+  }
+  .subtitle { font-size: 1.15rem; }
+  .eyebrow { letter-spacing: 0.18em; font-size: 0.72rem; }
+
+  .panel { padding: 1.1rem 1.1rem; }
+
+  /* Resource HUD: 2x2 grid on phones (was cramped at 4-across). */
+  .hud { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
+  /* Comfortable tap targets. */
+  .btn { display: block; width: 100%; text-align: center; padding: 0.9rem 1rem; }
+  .btn-row { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+  .btn-row.center, .btn-row[style*="center"] { align-items: stretch; }
+
+  .choice { padding: 0.95rem 1rem; font-size: 1.02rem; }
+
+  .prompt-text, .real-world, .learn-list li { font-size: 1.02rem; }
+
+  /* Footer: allow two lines rather than overflowing a single line. */
+  .footer { font-size: 0.72rem; line-height: 1.35; }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .hud { grid-template-columns: 1fr; }
+  .stage-bar { font-size: 0.82rem; }
+}
