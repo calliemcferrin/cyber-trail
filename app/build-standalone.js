@@ -32,7 +32,18 @@ ${css}
 <body>
 <div class="crt" aria-hidden="true"></div>
 <div class="scanlines" aria-hidden="true"></div>
-<main id="app" class="screen"></main>
+<main id="app" class="screen">
+  <noscript>
+    <div class="panel" style="margin-top:2rem">
+      <h2 class="subtitle">JavaScript is required</h2>
+      <p class="prompt-text">This game runs in your browser with JavaScript.
+      It looks like scripts are disabled, or this file was opened in a preview
+      (e.g. an email, messaging app, or cloud-drive viewer) that does not run
+      scripts. Please <strong>save the file and open it in a real browser</strong>
+      (Safari or Chrome), or enable JavaScript.</p>
+    </div>
+  </noscript>
+</main>
 <footer class="footer">
   <span class="blink">&#9679;</span> CYBER TRAIL v0.1 &mdash; standalone demo (runs offline in your browser).
   All "attacks" are simulated for learning.
@@ -92,7 +103,7 @@ function choose(eventId,choiceId){
 
 // ====== UI (adapted from public/app.js to call the local engine) ======
 (function(){
-  var app=document.getElementById('app');
+  function getApp(){ return document.getElementById('app'); }
   function el(tag,props,children){
     var node=document.createElement(tag);
     if(props){ for(var k in props){
@@ -104,7 +115,7 @@ function choose(eventId,choiceId){
     (children||[]).forEach(function(c){ if(c==null) return; node.appendChild(typeof c==='string'?document.createTextNode(c):c); });
     return node;
   }
-  function render(nodes){ app.textContent=''; app.classList.remove('fade'); void app.offsetWidth; app.classList.add('fade'); (Array.isArray(nodes)?nodes:[nodes]).forEach(function(n){app.appendChild(n);}); window.scrollTo(0,0); }
+  function render(nodes){ var app=getApp(); if(!app) return; app.textContent=''; app.classList.remove('fade'); void app.offsetWidth; app.classList.add('fade'); (Array.isArray(nodes)?nodes:[nodes]).forEach(function(n){app.appendChild(n);}); window.scrollTo(0,0); }
   var state={ facilityId:null, roleId:null, game:null };
 
   function titleScreen(){
@@ -212,7 +223,16 @@ function choose(eventId,choiceId){
       ])
     ]);
   }
-  titleScreen();
+  // Boot once the DOM is ready (robust across mobile load timing).
+  function boot(){ try { titleScreen(); } catch (err) {
+    var a = document.getElementById('app');
+    if (a) { a.textContent = 'Something went wrong starting the game: ' + err.message; }
+  } }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();
 </script>
 </body>
