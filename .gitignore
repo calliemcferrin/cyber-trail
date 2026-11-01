@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+build/
+**/dist/
+**/build/
+
+# Environment & secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Local data stores
+*.sqlite
+*.sqlite3
+data/*.db
+
+# Kiro agent config (not part of the project)
+.kiro/
+
+# Project archive artifacts
+cyber-trail.tar.gz

@@ -1,0 +1,217 @@
+/* ========================================================================
+   CYBER TRAIL — cyberpunk 90s arcade theme
+   Neon on near-black, CRT glow, scanlines, glitch. Zero dependencies.
+   ======================================================================== */
+
+:root {
+  --bg: #05060a;
+  --bg-panel: rgba(10, 14, 24, 0.82);
+  --cyan: #00f0ff;
+  --magenta: #ff2bd6;
+  --green: #39ff14;
+  --amber: #ffb000;
+  --red: #ff2d55;
+  --text: #cdfffb;
+  --dim: #6d7a86;
+  --grid: rgba(0, 240, 255, 0.08);
+  font-size: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Courier New", ui-monospace, "Lucida Console", monospace;
+  letter-spacing: 0.04em;
+  overflow-x: hidden;
+}
+
+/* Glowing perspective grid + vignette backdrop */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 43, 214, 0.12), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(0, 240, 255, 0.14), transparent 55%),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+}
+
+/* CRT flicker + scanline overlays */
+.crt {
+  position: fixed; inset: 0; z-index: 9998; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+  animation: flicker 6s infinite;
+}
+.scanlines {
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,0.18) 3px
+  );
+  mix-blend-mode: multiply;
+}
+@keyframes flicker {
+  0%, 95%, 100% { opacity: 1; }
+  96% { opacity: 0.82; }
+  97% { opacity: 1; }
+  98% { opacity: 0.9; }
+}
+
+/* ---------------------------- layout ---------------------------- */
+.screen {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 2.2rem 1.25rem 5rem;
+  min-height: 100vh;
+}
+
+.footer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.72rem;
+  color: var(--dim);
+  background: linear-gradient(transparent, rgba(0,0,0,0.85));
+  text-align: center;
+  z-index: 10;
+}
+
+/* ---------------------------- typography ---------------------------- */
+.title {
+  font-size: clamp(2.2rem, 7vw, 4.2rem);
+  font-weight: 900;
+  line-height: 0.95;
+  margin: 0.4rem 0 0.2rem;
+  color: #fff;
+  text-shadow:
+    0 0 6px var(--cyan), 0 0 18px var(--cyan),
+    3px 0 var(--magenta), -3px 0 var(--green);
+  animation: glitch 3.5s infinite;
+}
+@keyframes glitch {
+  0%, 97%, 100% { transform: translate(0,0); }
+  92% { transform: translate(-2px, 1px); }
+  94% { transform: translate(2px, -1px); }
+  96% { transform: translate(-1px, 0); }
+}
+.subtitle { color: var(--magenta); text-shadow: 0 0 8px var(--magenta); margin: 0 0 1.6rem; }
+.eyebrow { color: var(--cyan); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; }
+.prompt-text { font-size: 1.05rem; line-height: 1.6; color: var(--text); }
+.blink { animation: blink 1s steps(1) infinite; color: var(--green); }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---------------------------- panels & cards ---------------------------- */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.12), inset 0 0 24px rgba(0,0,0,0.6);
+  padding: 1.4rem 1.5rem;
+  margin-bottom: 1.2rem;
+  backdrop-filter: blur(2px);
+}
+.card-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+.card {
+  text-align: left;
+  background: rgba(8, 12, 22, 0.9);
+  border: 1px solid rgba(255, 43, 214, 0.3);
+  padding: 1.1rem 1.2rem;
+  cursor: pointer;
+  color: var(--text);
+  font: inherit;
+  transition: transform 0.12s, box-shadow 0.2s, border-color 0.2s;
+}
+.card:hover, .card:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--cyan);
+  box-shadow: 0 0 22px rgba(0, 240, 255, 0.4);
+  outline: none;
+}
+.card h3 { margin: 0 0 0.3rem; color: var(--cyan); text-shadow: 0 0 6px var(--cyan); }
+.card .tag { color: var(--magenta); font-size: 0.75rem; text-transform: uppercase; }
+.card p { color: var(--dim); font-size: 0.86rem; line-height: 1.5; margin: 0.5rem 0 0; }
+
+/* ---------------------------- buttons ---------------------------- */
+.btn {
+  display: inline-block;
+  font: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: var(--green);
+  border: 2px solid var(--green);
+  cursor: pointer;
+  text-shadow: 0 0 6px var(--green);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.25), inset 0 0 10px rgba(57,255,20,0.1);
+  transition: background 0.15s, color 0.15s, box-shadow 0.2s;
+}
+.btn:hover, .btn:focus-visible {
+  background: var(--green);
+  color: #04120a;
+  text-shadow: none;
+  box-shadow: 0 0 24px rgba(57, 255, 20, 0.6);
+  outline: none;
+}
+.btn.secondary { color: var(--cyan); border-color: var(--cyan); text-shadow: 0 0 6px var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,0.25); }
+.btn.secondary:hover { background: var(--cyan); color: #021014; }
+.btn-row { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 1.4rem; }
+
+/* choice buttons */
+.choice {
+  display: block; width: 100%; text-align: left;
+  margin: 0.6rem 0; padding: 0.9rem 1.1rem;
+  background: rgba(8, 12, 22, 0.9);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: var(--text); font: inherit; cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.2s, transform 0.1s;
+}
+.choice:hover, .choice:focus-visible {
+  border-color: var(--magenta);
+  box-shadow: 0 0 16px rgba(255, 43, 214, 0.35);
+  transform: translateX(4px); outline: none;
+}
+.choice .key { color: var(--amber); font-weight: 700; margin-right: 0.6rem; }
+
+/* ---------------------------- HUD / resource meters ---------------------------- */
+.hud { display: grid; gap: 0.7rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 1.2rem; }
+.meter { background: rgba(8,12,22,0.9); border: 1px solid rgba(0,240,255,0.25); padding: 0.55rem 0.7rem; }
+.meter .label { display: flex; justify-content: space-between; font-size: 0.72rem; text-transform: uppercase; color: var(--dim); }
+.meter .bar { height: 10px; margin-top: 0.35rem; background: rgba(255,255,255,0.06); overflow: hidden; }
+.meter .fill { height: 100%; transition: width 0.5s ease; }
+.fill.good { background: linear-gradient(90deg, var(--green), var(--cyan)); box-shadow: 0 0 8px var(--green); }
+.fill.warn { background: linear-gradient(90deg, var(--amber), var(--magenta)); box-shadow: 0 0 8px var(--amber); }
+.fill.bad  { background: linear-gradient(90deg, var(--red), var(--magenta)); box-shadow: 0 0 8px var(--red); }
+
+.stage-bar { font-size: 0.8rem; color: var(--cyan); margin-bottom: 0.8rem; }
+
+/* ---------------------------- debrief ---------------------------- */
+.debrief { border-color: rgba(57,255,20,0.4); box-shadow: 0 0 18px rgba(57,255,20,0.14), inset 0 0 24px rgba(0,0,0,0.6); }
+.badge { display: inline-block; padding: 0.15rem 0.6rem; font-size: 0.72rem; text-transform: uppercase; border: 1px solid; margin-bottom: 0.6rem; }
+.badge.ok { color: var(--green); border-color: var(--green); }
+.badge.no { color: var(--red); border-color: var(--red); }
+.learn-list { margin: 0.6rem 0 0; padding-left: 1.2rem; }
+.learn-list li { margin: 0.35rem 0; line-height: 1.5; }
+.meta { color: var(--dim); font-size: 0.8rem; }
+.attack-name { color: var(--magenta); text-shadow: 0 0 6px var(--magenta); }
+.real-world { border-left: 3px solid var(--amber); padding-left: 0.9rem; color: var(--text); font-size: 0.92rem; }
+
+/* ---------------------------- end screens ---------------------------- */
+.endbanner { font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 900; margin: 0.5rem 0; }
+.endbanner.win { color: var(--green); text-shadow: 0 0 10px var(--green), 0 0 26px var(--green); }
+.endbanner.lose { color: var(--red); text-shadow: 0 0 10px var(--red), 0 0 26px var(--red); }
+.score { font-size: 1.6rem; color: var(--amber); text-shadow: 0 0 10px var(--amber); }
+
+.error { color: var(--red); border: 1px solid var(--red); padding: 0.8rem 1rem; margin-top: 1rem; }
+.center { text-align: center; }
+.fade { animation: fade 0.35s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .crt, .title, .blink { animation: none; }
+}
