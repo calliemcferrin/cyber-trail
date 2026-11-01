@@ -41,3 +41,6 @@ data/*.db
 
 # Project archive artifacts
 cyber-trail.tar.gz
+
+# Generated standalone demo (rebuild with app/build-standalone.js)
+cyber-trail-standalone.html

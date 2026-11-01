@@ -5,16 +5,27 @@
 
 :root {
   --bg: #05060a;
-  --bg-panel: rgba(10, 14, 24, 0.82);
-  --cyan: #00f0ff;
-  --magenta: #ff2bd6;
-  --green: #39ff14;
-  --amber: #ffb000;
-  --red: #ff2d55;
-  --text: #cdfffb;
-  --dim: #6d7a86;
-  --grid: rgba(0, 240, 255, 0.08);
-  font-size: 16px;
+  --bg-panel: rgba(12, 17, 28, 0.9);
+  /* Palette: purple, blue, green (dominant), white, grey.
+     Variable names kept for stability; values repointed to the new scheme. */
+  --green: #5bff7a;       /* HERO accent — used most */
+  --green-soft: #8dffa6;  /* lighter green for readable highlights */
+  --blue: #4db5ff;        /* secondary accent */
+  --purple: #a97bff;      /* tertiary accent (replaces the old pink) */
+  /* Back-compat aliases so existing rules keep working */
+  --cyan: var(--blue);
+  --magenta: var(--purple);
+  --amber: var(--green-soft);
+  --warn: #ffd24d;        /* functional warning (meters only) */
+  --red: #ff6b6b;         /* functional danger (lose / critical only) */
+  /* High-contrast reading colors */
+  --text: #eef4f6;        /* bright near-white for body copy */
+  --dim: #b2bcc4;         /* readable grey */
+  --grid: rgba(91, 255, 122, 0.06);  /* faint green grid */
+  /* Fonts: sans-serif for prose, monospace reserved for arcade chrome */
+  --font-body: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Courier New", "Lucida Console", monospace;
+  font-size: 17px;
 }
 
 * { box-sizing: border-box; }
@@ -24,8 +35,9 @@ html, body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--text);
-  font-family: "Courier New", ui-monospace, "Lucida Console", monospace;
-  letter-spacing: 0.04em;
+  font-family: var(--font-body);
+  line-height: 1.6;
+  letter-spacing: 0;
   overflow-x: hidden;
 }
 
@@ -36,31 +48,29 @@ body::before {
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(255, 43, 214, 0.12), transparent 60%),
-    radial-gradient(ellipse at 50% 120%, rgba(0, 240, 255, 0.14), transparent 55%),
+    radial-gradient(ellipse at 50% 0%, rgba(91, 255, 122, 0.14), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(77, 181, 255, 0.12), transparent 55%),
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
 }
 
-/* CRT flicker + scanline overlays */
+/* CRT glow + scanline overlays — kept subtle so they never wash out text */
 .crt {
   position: fixed; inset: 0; z-index: 9998; pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
-  animation: flicker 6s infinite;
+  background: radial-gradient(ellipse at center, transparent 72%, rgba(0,0,0,0.38) 100%);
+  animation: flicker 9s infinite;
 }
 .scanlines {
   position: fixed; inset: 0; z-index: 9999; pointer-events: none;
   background: repeating-linear-gradient(
-    to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,0.18) 3px
+    to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 3px, rgba(0,0,0,0.06) 4px
   );
-  mix-blend-mode: multiply;
 }
 @keyframes flicker {
-  0%, 95%, 100% { opacity: 1; }
-  96% { opacity: 0.82; }
-  97% { opacity: 1; }
-  98% { opacity: 0.9; }
+  0%, 96%, 100% { opacity: 1; }
+  97% { opacity: 0.94; }
+  98.5% { opacity: 0.97; }
 }
 
 /* ---------------------------- layout ---------------------------- */
@@ -73,24 +83,27 @@ body::before {
 
 .footer {
   position: fixed; bottom: 0; left: 0; right: 0;
-  padding: 0.5rem 1rem;
-  font-size: 0.72rem;
+  padding: 0.6rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
   color: var(--dim);
-  background: linear-gradient(transparent, rgba(0,0,0,0.85));
+  background: linear-gradient(transparent, rgba(0,0,0,0.92));
   text-align: center;
   z-index: 10;
 }
 
 /* ---------------------------- typography ---------------------------- */
 .title {
+  font-family: var(--font-mono);
   font-size: clamp(2.2rem, 7vw, 4.2rem);
   font-weight: 900;
   line-height: 0.95;
+  letter-spacing: 0.02em;
   margin: 0.4rem 0 0.2rem;
   color: #fff;
   text-shadow:
-    0 0 6px var(--cyan), 0 0 18px var(--cyan),
-    3px 0 var(--magenta), -3px 0 var(--green);
+    0 0 6px var(--green), 0 0 20px var(--green),
+    3px 0 var(--purple), -3px 0 var(--blue);
   animation: glitch 3.5s infinite;
 }
 @keyframes glitch {
@@ -99,17 +112,34 @@ body::before {
   94% { transform: translate(2px, -1px); }
   96% { transform: translate(-1px, 0); }
 }
-.subtitle { color: var(--magenta); text-shadow: 0 0 8px var(--magenta); margin: 0 0 1.6rem; }
-.eyebrow { color: var(--cyan); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3em; }
-.prompt-text { font-size: 1.05rem; line-height: 1.6; color: var(--text); }
+.subtitle {
+  color: var(--green);
+  text-shadow: 0 0 10px rgba(91, 255, 122, 0.45);
+  margin: 0.2rem 0 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  color: var(--green);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+}
+.prompt-text {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  color: var(--text);
+  max-width: 68ch;
+}
 .blink { animation: blink 1s steps(1) infinite; color: var(--green); }
 @keyframes blink { 50% { opacity: 0; } }
 
 /* ---------------------------- panels & cards ---------------------------- */
 .panel {
   background: var(--bg-panel);
-  border: 1px solid rgba(0, 240, 255, 0.35);
-  box-shadow: 0 0 18px rgba(0, 240, 255, 0.12), inset 0 0 24px rgba(0,0,0,0.6);
+  border: 1px solid rgba(91, 255, 122, 0.35);
+  box-shadow: 0 0 18px rgba(91, 255, 122, 0.12), inset 0 0 24px rgba(0,0,0,0.6);
   padding: 1.4rem 1.5rem;
   margin-bottom: 1.2rem;
   backdrop-filter: blur(2px);
@@ -118,8 +148,8 @@ body::before {
 
 .card {
   text-align: left;
-  background: rgba(8, 12, 22, 0.9);
-  border: 1px solid rgba(255, 43, 214, 0.3);
+  background: rgba(10, 16, 24, 0.9);
+  border: 1px solid rgba(77, 181, 255, 0.3);
   padding: 1.1rem 1.2rem;
   cursor: pointer;
   color: var(--text);
@@ -128,20 +158,27 @@ body::before {
 }
 .card:hover, .card:focus-visible {
   transform: translateY(-3px);
-  border-color: var(--cyan);
-  box-shadow: 0 0 22px rgba(0, 240, 255, 0.4);
+  border-color: var(--green);
+  box-shadow: 0 0 22px rgba(91, 255, 122, 0.4);
   outline: none;
 }
-.card h3 { margin: 0 0 0.3rem; color: var(--cyan); text-shadow: 0 0 6px var(--cyan); }
-.card .tag { color: var(--magenta); font-size: 0.75rem; text-transform: uppercase; }
-.card p { color: var(--dim); font-size: 0.86rem; line-height: 1.5; margin: 0.5rem 0 0; }
+.card h3 { margin: 0.15rem 0 0.4rem; color: var(--green); font-size: 1.2rem; }
+.card .tag {
+  font-family: var(--font-mono);
+  color: var(--purple);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.card p { color: var(--dim); font-size: 0.98rem; line-height: 1.6; margin: 0.5rem 0 0; }
 
 /* ---------------------------- buttons ---------------------------- */
 .btn {
   display: inline-block;
-  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   padding: 0.75rem 1.5rem;
   background: transparent;
   color: var(--green);
@@ -164,48 +201,72 @@ body::before {
 
 /* choice buttons */
 .choice {
-  display: block; width: 100%; text-align: left;
-  margin: 0.6rem 0; padding: 0.9rem 1.1rem;
-  background: rgba(8, 12, 22, 0.9);
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  color: var(--text); font: inherit; cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.2s, transform 0.1s;
+  display: flex; align-items: baseline; width: 100%; text-align: left;
+  margin: 0.6rem 0; padding: 1rem 1.2rem;
+  background: rgba(12, 17, 28, 0.92);
+  border: 1px solid rgba(91, 255, 122, 0.35);
+  border-left: 3px solid var(--green);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1.05rem; line-height: 1.5;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.2s, transform 0.1s, background 0.15s;
 }
 .choice:hover, .choice:focus-visible {
-  border-color: var(--magenta);
-  box-shadow: 0 0 16px rgba(255, 43, 214, 0.35);
+  border-color: var(--green);
+  border-left-color: var(--green);
+  background: rgba(16, 28, 22, 0.95);
+  box-shadow: 0 0 16px rgba(91, 255, 122, 0.35);
   transform: translateX(4px); outline: none;
 }
-.choice .key { color: var(--amber); font-weight: 700; margin-right: 0.6rem; }
+.choice .key { font-family: var(--font-mono); color: var(--blue); font-weight: 700; margin-right: 0.7rem; }
 
 /* ---------------------------- HUD / resource meters ---------------------------- */
 .hud { display: grid; gap: 0.7rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 1.2rem; }
-.meter { background: rgba(8,12,22,0.9); border: 1px solid rgba(0,240,255,0.25); padding: 0.55rem 0.7rem; }
-.meter .label { display: flex; justify-content: space-between; font-size: 0.72rem; text-transform: uppercase; color: var(--dim); }
-.meter .bar { height: 10px; margin-top: 0.35rem; background: rgba(255,255,255,0.06); overflow: hidden; }
+.meter { background: rgba(12,17,28,0.9); border: 1px solid rgba(91,255,122,0.3); padding: 0.6rem 0.75rem; }
+.meter .label {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.82rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--dim);
+}
+.meter .label span:last-child { color: var(--text); }
+.meter .bar { height: 12px; margin-top: 0.4rem; background: rgba(255,255,255,0.1); overflow: hidden; border-radius: 2px; }
 .meter .fill { height: 100%; transition: width 0.5s ease; }
-.fill.good { background: linear-gradient(90deg, var(--green), var(--cyan)); box-shadow: 0 0 8px var(--green); }
-.fill.warn { background: linear-gradient(90deg, var(--amber), var(--magenta)); box-shadow: 0 0 8px var(--amber); }
-.fill.bad  { background: linear-gradient(90deg, var(--red), var(--magenta)); box-shadow: 0 0 8px var(--red); }
+.fill.good { background: linear-gradient(90deg, var(--green), var(--blue)); box-shadow: 0 0 8px var(--green); }
+.fill.warn { background: linear-gradient(90deg, var(--warn), var(--purple)); box-shadow: 0 0 8px var(--warn); }
+.fill.bad  { background: linear-gradient(90deg, var(--red), var(--purple)); box-shadow: 0 0 8px var(--red); }
 
-.stage-bar { font-size: 0.8rem; color: var(--cyan); margin-bottom: 0.8rem; }
+.stage-bar { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 600; letter-spacing: 0.06em; color: var(--green); margin-bottom: 0.8rem; }
 
 /* ---------------------------- debrief ---------------------------- */
-.debrief { border-color: rgba(57,255,20,0.4); box-shadow: 0 0 18px rgba(57,255,20,0.14), inset 0 0 24px rgba(0,0,0,0.6); }
-.badge { display: inline-block; padding: 0.15rem 0.6rem; font-size: 0.72rem; text-transform: uppercase; border: 1px solid; margin-bottom: 0.6rem; }
-.badge.ok { color: var(--green); border-color: var(--green); }
-.badge.no { color: var(--red); border-color: var(--red); }
-.learn-list { margin: 0.6rem 0 0; padding-left: 1.2rem; }
-.learn-list li { margin: 0.35rem 0; line-height: 1.5; }
-.meta { color: var(--dim); font-size: 0.8rem; }
-.attack-name { color: var(--magenta); text-shadow: 0 0 6px var(--magenta); }
-.real-world { border-left: 3px solid var(--amber); padding-left: 0.9rem; color: var(--text); font-size: 0.92rem; }
+.debrief { border-color: rgba(91,255,122,0.45); box-shadow: 0 0 18px rgba(91,255,122,0.12), inset 0 0 24px rgba(0,0,0,0.5); }
+.badge {
+  display: inline-block; padding: 0.3rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  border: 1px solid; border-radius: 3px; margin-bottom: 0.8rem;
+}
+.badge.ok { color: var(--green); border-color: var(--green); background: rgba(91,255,122,0.1); }
+.badge.no { color: var(--red); border-color: var(--red); background: rgba(255,90,122,0.1); }
+.learn-list { margin: 0.6rem 0 0; padding-left: 1.3rem; }
+.learn-list li { margin: 0.5rem 0; line-height: 1.6; font-size: 1.02rem; }
+.meta { font-family: var(--font-mono); color: var(--dim); font-size: 0.85rem; }
+.attack-name { color: var(--purple); font-weight: 700; font-size: 1.15rem; }
+.real-world {
+  border-left: 3px solid var(--blue);
+  padding: 0.5rem 0 0.5rem 1rem;
+  color: var(--text); font-size: 1.02rem; line-height: 1.6;
+}
+.debrief hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 1.1rem 0; }
 
 /* ---------------------------- end screens ---------------------------- */
 .endbanner { font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 900; margin: 0.5rem 0; }
 .endbanner.win { color: var(--green); text-shadow: 0 0 10px var(--green), 0 0 26px var(--green); }
 .endbanner.lose { color: var(--red); text-shadow: 0 0 10px var(--red), 0 0 26px var(--red); }
-.score { font-size: 1.6rem; color: var(--amber); text-shadow: 0 0 10px var(--amber); }
+.score { font-size: 1.6rem; color: var(--green); text-shadow: 0 0 10px var(--green); font-family: var(--font-mono); font-weight: 700; }
 
 .error { color: var(--red); border: 1px solid var(--red); padding: 0.8rem 1rem; margin-top: 1rem; }
 .center { text-align: center; }
