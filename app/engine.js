@@ -19,6 +19,22 @@ const {
 
 const clamp = (n, min = 0, max = 100) => Math.max(min, Math.min(max, n));
 
+/**
+ * Difficulty tuning. The game is deliberately unforgiving: a facility is
+ * considered compromised well before a meter hits zero, each stage imposes an
+ * ongoing operating drain, and you can't coast on a good start.
+ */
+const DIFFICULTY = {
+  // Lose if Integrity or Uptime drops to this or below (not just 0).
+  loseThreshold: 25,
+  // Per-stage passive drain applied before evaluating win/lose, modelling the
+  // constant pressure of running critical infrastructure.
+  stageDrain: { integrity: 3, uptime: 3, budget: 2, morale: 2 },
+  // Starting resources are reduced by this much from each facility's base,
+  // leaving less cushion for mistakes.
+  startPenalty: { integrity: 10, uptime: 5, budget: 10, morale: 10 },
+};
+
 /** Fisher–Yates shuffle. */
 function shuffle(arr) {
   const a = arr.slice();
@@ -106,13 +122,21 @@ function startGame({ facilityId, roleId }) {
   const totalStages = Math.min(facility.stages, pool.length);
   const deck = shuffle(pool.map((e) => e.id)).slice(0, totalStages);
   const now = Date.now();
+  // Reduced starting resources — less cushion than the facility's base.
+  const base = facility.startingResources;
+  const startResources = {
+    integrity: clamp(base.integrity - DIFFICULTY.startPenalty.integrity),
+    uptime: clamp(base.uptime - DIFFICULTY.startPenalty.uptime),
+    budget: clamp(base.budget - DIFFICULTY.startPenalty.budget),
+    morale: clamp(base.morale - DIFFICULTY.startPenalty.morale),
+  };
   const run = {
     sessionId: randomUUID(),
     facilityId,
     roleId,
     stage: 0,
     totalStages,
-    resources: Object.assign({}, facility.startingResources),
+    resources: startResources,
     status: 'in_progress',
     deck,
     currentEventId: deck[0] || null,
@@ -172,7 +196,17 @@ function choose(sessionId, { eventId, choiceId }) {
 /** Advance the run one stage and evaluate win/lose. Shared by choose + minigame. */
 function advanceStage(run) {
   run.stage += 1;
-  if (run.resources.integrity <= 0 || run.resources.uptime <= 0) {
+
+  // Ongoing operating drain each stage — you can't coast on a good start.
+  const d = DIFFICULTY.stageDrain;
+  run.resources.integrity = clamp(run.resources.integrity - d.integrity);
+  run.resources.uptime = clamp(run.resources.uptime - d.uptime);
+  run.resources.budget = clamp(run.resources.budget - d.budget);
+  run.resources.morale = clamp(run.resources.morale - d.morale);
+
+  const t = DIFFICULTY.loseThreshold;
+  if (run.resources.integrity <= t || run.resources.uptime <= t) {
+    // Compromised well before zero — a critically degraded facility has failed.
     run.status = 'lost';
     run.currentEventId = null;
   } else if (run.stage >= run.totalStages) {

@@ -154,16 +154,26 @@ function submitMiniGameLocal(eventId, minigameId, result, skipped){
   for(var i=0;i<graded.effects.length;i++){ var eff=graded.effects[i]; run.resources[eff.key]=clamp(run.resources[eff.key]+eff.amount); }
   var gloss=glossaryForText([graded.outcome, ev.learning.summary, ev.learning.realWorldExample, ev.learning.preventiveMeasures.join(' ')]);
   run.lastOutcome={ choiceId:'minigame:'+minigameId, outcome:graded.outcome, isRecommended:(band==='perfect'||band==='good'), band:band, skipped:!!skipped, wrongCount:scored.wrongCount, review:scored.review, learning:ev.learning, eventTitle:ev.title, glossary:gloss };
-  run.stage+=1;
-  if(run.resources.integrity<=0||run.resources.uptime<=0){ run.status='lost'; run.currentEventId=null; }
-  else if(run.stage>=run.totalStages){ run.status='won'; run.currentEventId=null; }
-  else { run.currentEventId=run.deck[run.stage]||null; if(!run.currentEventId) run.status='won'; }
+  advanceStage(run);
   return view(run);
 }
 
 // ====== Browser-side engine (ported from server engine.js) ======
 // DEMO ONLY: in the real game this logic lives on the server (trust boundary).
 function clamp(n){ return Math.max(0, Math.min(100, n)); }
+var DIFFICULTY={ loseThreshold:25, stageDrain:{integrity:3,uptime:3,budget:2,morale:2}, startPenalty:{integrity:10,uptime:5,budget:10,morale:10} };
+function advanceStage(run){
+  run.stage+=1;
+  var d=DIFFICULTY.stageDrain;
+  run.resources.integrity=clamp(run.resources.integrity-d.integrity);
+  run.resources.uptime=clamp(run.resources.uptime-d.uptime);
+  run.resources.budget=clamp(run.resources.budget-d.budget);
+  run.resources.morale=clamp(run.resources.morale-d.morale);
+  var t=DIFFICULTY.loseThreshold;
+  if(run.resources.integrity<=t||run.resources.uptime<=t){ run.status='lost'; run.currentEventId=null; }
+  else if(run.stage>=run.totalStages){ run.status='won'; run.currentEventId=null; }
+  else { run.currentEventId=run.deck[run.stage]||null; if(!run.currentEventId) run.status='won'; }
+}
 function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;} return a; }
 function eventsFor(fid,rid){ return EVENTS.filter(function(e){return e.facilities.indexOf(fid)>=0 && e.roles.indexOf(rid)>=0;}); }
 function findEvent(id,pool){ for(var i=0;i<pool.length;i++){ if(pool[i].id===id) return pool[i]; } return null; }
@@ -188,9 +198,10 @@ function startGame(fid,rid){
   var pool=eventsFor(fid,rid);
   var totalStages=Math.min(fac.stages, pool.length);
   var deck=shuffle(pool.map(function(e){return e.id;})).slice(0,totalStages);
+  var b=fac.startingResources, sp=DIFFICULTY.startPenalty;
   run={ facilityId:fid, roleId:rid, stage:0, totalStages:totalStages,
-    resources:{integrity:fac.startingResources.integrity,uptime:fac.startingResources.uptime,
-      budget:fac.startingResources.budget,morale:fac.startingResources.morale},
+    resources:{integrity:clamp(b.integrity-sp.integrity),uptime:clamp(b.uptime-sp.uptime),
+      budget:clamp(b.budget-sp.budget),morale:clamp(b.morale-sp.morale)},
     status:'in_progress', deck:deck, currentEventId:deck[0]||null, lastOutcome:null };
   return view(run);
 }
@@ -201,10 +212,7 @@ function choose(eventId,choiceId){
   for(var i=0;i<ch.effects.length;i++){ var eff=ch.effects[i]; run.resources[eff.key]=clamp(run.resources[eff.key]+eff.amount); }
   var debriefGloss=glossaryForText([ch.outcome, ev.learning.summary, ev.learning.realWorldExample, ev.learning.preventiveMeasures.join(' ')]);
   run.lastOutcome={ choiceId:ch.id, outcome:ch.outcome, isRecommended:ch.isRecommended, learning:ev.learning, eventTitle:ev.title, glossary:debriefGloss };
-  run.stage+=1;
-  if(run.resources.integrity<=0||run.resources.uptime<=0){ run.status='lost'; run.currentEventId=null; }
-  else if(run.stage>=run.totalStages){ run.status='won'; run.currentEventId=null; }
-  else { run.currentEventId=run.deck[run.stage]||null; if(!run.currentEventId) run.status='won'; }
+  advanceStage(run);
   return view(run);
 }
 
