@@ -114,42 +114,44 @@ const EVENTS = [
     title: 'An Urgent Invoice',
     prompt:
       'An email lands in your inbox: "URGENT — unpaid invoice, click to view ' +
-      'or your account is suspended in 2 hours." The sender looks like your ' +
-      'vendor, but the domain is "blackwater-billing.co" instead of ".gov". ' +
-      'What do you do?',
+      'or your account is suspended in 2 hours." The sender name matches your ' +
+      'vendor, and the invoice amount looks about right for a recent order. ' +
+      'How do you handle it?',
     facilities: ['water', 'power'],
     roles: ['employee'],
     choices: [
       {
         id: 'click_link',
-        label: 'Click the link to avoid the account suspension.',
+        label: 'Open the link to review the invoice before the deadline.',
         effects: [
           { key: 'integrity', amount: -25 },
           { key: 'morale', amount: -5 },
         ],
         isRecommended: false,
         outcome:
-          'The link harvested your credentials. Attackers now have a foothold. ' +
-          'Urgency and fear are the classic levers of a phishing attack.',
-      },
-      {
-        id: 'report_it',
-        label: 'Report the email to IT/security and do not click.',
-        effects: [{ key: 'morale', amount: 5 }],
-        isRecommended: true,
-        outcome:
-          'You spotted the mismatched domain and manufactured urgency, and ' +
-          'reported it. Security blocked the sender for everyone. This is ' +
-          'exactly the behavior that stops phishing at the door.',
+          'The sending domain was "blackwater-billing.co," not your vendor\u2019s ' +
+          'real address \u2014 and the link harvested your credentials. Urgency and ' +
+          'a plausible amount are the classic levers of a phishing attack.',
       },
       {
         id: 'ignore',
         label: 'Delete it and move on without telling anyone.',
-        effects: [],
+        effects: [{ key: 'integrity', amount: -4 }],
         isRecommended: false,
         outcome:
-          'You avoided the trap, but silent colleagues may still fall for it. ' +
-          'Reporting protects the whole organization, not just you.',
+          'You personally dodged the trap \u2014 but staying silent leaves your ' +
+          'colleagues exposed to the same campaign. Deleting protects only you; ' +
+          'reporting protects everyone, and lets security block the sender.',
+      },
+      {
+        id: 'report_it',
+        label: 'Check the real sender address, don\u2019t click, and report it to security.',
+        effects: [{ key: 'morale', amount: 5 }],
+        isRecommended: true,
+        outcome:
+          'You inspected the actual sending domain, spotted the mismatch and the ' +
+          'manufactured urgency, and reported it. Security blocked the sender for ' +
+          'everyone. This is exactly the behavior that stops phishing at the door.',
       },
     ],
     learning: {
@@ -177,13 +179,13 @@ const EVENTS = [
     prompt:
       'Walking into the plant, someone in a delivery uniform with full hands ' +
       'says, "Hey, could you badge me in? Forgot my card again." They seem ' +
-      'nice and are clearly in a hurry. Do you hold the secure door?',
+      'nice and are clearly in a hurry. How do you respond?',
     facilities: ['water', 'power'],
     roles: ['employee'],
     choices: [
       {
         id: 'hold_door',
-        label: 'Be polite and hold the door open for them.',
+        label: 'Hold the door open so they can get to their delivery.',
         effects: [{ key: 'integrity', amount: -20 }],
         isRecommended: false,
         outcome:
@@ -191,8 +193,18 @@ const EVENTS = [
           'access can defeat millions of dollars of cyber defenses.',
       },
       {
+        id: 'escort_in',
+        label: 'Badge them in but keep an eye on them while they\u2019re inside.',
+        effects: [{ key: 'integrity', amount: -10 }],
+        isRecommended: false,
+        outcome:
+          'Escorting feels responsible, but you still granted an unverified ' +
+          'person access on your own authority \u2014 and you can\u2019t actually watch ' +
+          'them every second. Verification has to come before entry, not after.',
+      },
+      {
         id: 'direct_to_front',
-        label: 'Politely direct them to the front desk to sign in.',
+        label: 'Direct them to the front desk to be verified and signed in.',
         effects: [{ key: 'morale', amount: 3 }],
         isRecommended: true,
         outcome:
@@ -223,13 +235,14 @@ const EVENTS = [
     title: 'A Lucky Find in the Parking Lot',
     prompt:
       'You find a USB drive in the parking lot labeled "Payroll Q4 — ' +
-      'CONFIDENTIAL." Curiosity is killing you. What do you do with it?',
+      'CONFIDENTIAL." It may belong to a coworker who\u2019d want it back. What do ' +
+      'you do with it?',
     facilities: ['water', 'power'],
     roles: ['employee'],
     choices: [
       {
         id: 'plug_in',
-        label: 'Plug it into your workstation to see who it belongs to.',
+        label: 'Plug it into your workstation to find out whose it is.',
         effects: [{ key: 'integrity', amount: -30 }],
         isRecommended: false,
         outcome:
@@ -237,8 +250,18 @@ const EVENTS = [
           'because curiosity beats caution. Never plug in unknown media.',
       },
       {
+        id: 'scan_first',
+        label: 'Plug it in, but run an antivirus scan on it first to be safe.',
+        effects: [{ key: 'integrity', amount: -18 }],
+        isRecommended: false,
+        outcome:
+          'Scanning feels cautious, but simply connecting the drive can trigger ' +
+          'malicious code before any scan runs, and antivirus misses novel or ' +
+          'firmware-based payloads. The only safe move is to not connect it at all.',
+      },
+      {
         id: 'hand_to_security',
-        label: 'Hand it to security without plugging it in anywhere.',
+        label: 'Don\u2019t connect it anywhere; hand it to security to handle.',
         effects: [{ key: 'morale', amount: 4 }],
         isRecommended: true,
         outcome:
@@ -277,7 +300,7 @@ const EVENTS = [
     choices: [
       {
         id: 'pay_quietly',
-        label: 'Quietly arrange to pay the ransom to make it stop.',
+        label: 'Arrange to pay the ransom to get the systems back fast.',
         effects: [
           { key: 'budget', amount: -30 },
           { key: 'integrity', amount: -10 },
@@ -289,8 +312,18 @@ const EVENTS = [
           'ransomware.',
       },
       {
+        id: 'wait_and_watch',
+        label: 'Gather forensic detail on the attack before you change anything.',
+        effects: [{ key: 'integrity', amount: -25 }],
+        isRecommended: false,
+        outcome:
+          'Understanding the attack matters \u2014 but not while encryption is ' +
+          'actively spreading. During the delay the ransomware reached your ' +
+          'backup servers too. Contain first, investigate second.',
+      },
+      {
         id: 'isolate_segment',
-        label: 'Isolate the affected segment from the network immediately.',
+        label: 'Disconnect the affected segment from the network right away.',
         effects: [
           { key: 'uptime', amount: -10 },
           { key: 'integrity', amount: 5 },
@@ -300,16 +333,6 @@ const EVENTS = [
           'You pulled the affected segment off the network, halting lateral ' +
           'movement. A brief uptime hit saved the rest of the plant. ' +
           'Containment first — always.',
-      },
-      {
-        id: 'wait_and_watch',
-        label: 'Keep monitoring to understand the attack before acting.',
-        effects: [{ key: 'integrity', amount: -25 }],
-        isRecommended: false,
-        outcome:
-          'While you watched, the ransomware reached backup servers too. With ' +
-          'active encryption spreading, speed matters more than perfect ' +
-          'understanding.',
       },
     ],
     learning: {
@@ -342,12 +365,13 @@ const EVENTS = [
     choices: [
       {
         id: 'ignore_patch',
-        label: 'Skip it — the system is too fragile to touch.',
+        label: 'Leave it for now to avoid destabilizing the legacy system.',
         effects: [{ key: 'integrity', amount: -20 }],
         isRecommended: false,
         outcome:
-          'An unpatched, internet-exposed RCE is an open door. Attackers scan ' +
-          'for these within hours of disclosure.',
+          'Protecting uptime is understandable, but an unpatched, internet-' +
+          'exposed RCE is an open door. Attackers scan for these within hours ' +
+          'of disclosure \u2014 doing nothing is the riskiest option here.',
       },
       {
         id: 'plan_window',
@@ -403,7 +427,7 @@ const EVENTS = [
     choices: [
       {
         id: 'add_capacity',
-        label: 'Just add more server capacity and ride it out.',
+        label: 'Add more server capacity to absorb the traffic and ride it out.',
         effects: [
           { key: 'budget', amount: -15 },
           { key: 'uptime', amount: -10 },
@@ -415,8 +439,22 @@ const EVENTS = [
           'intrusion.',
       },
       {
+        id: 'block_ips',
+        label: 'Block the offending IP addresses at your own firewall.',
+        effects: [
+          { key: 'uptime', amount: -6 },
+          { key: 'integrity', amount: -4 },
+        ],
+        isRecommended: false,
+        outcome:
+          'Blocking at your own edge seems logical, but the traffic comes from ' +
+          'thousands of rotating, often spoofed IPs and still saturates your ' +
+          'upstream link before your firewall sees it. Volumetric DDoS has to be ' +
+          'absorbed upstream, not at your own perimeter.',
+      },
+      {
         id: 'engage_mitigation',
-        label: 'Engage DDoS mitigation/scrubbing and watch for a secondary attack.',
+        label: 'Engage upstream DDoS scrubbing and watch for a secondary attack.',
         effects: [{ key: 'uptime', amount: 5 }],
         isRecommended: true,
         outcome:
@@ -446,15 +484,16 @@ const EVENTS = [
     id: 'budget_training_supervisor',
     title: 'The Security Budget Meeting',
     prompt:
-      'Finance wants to cut costs. You can fund one initiative this quarter: ' +
-      'security-awareness training for all staff, or a flashy new firewall ' +
-      'appliance. The board loves visible hardware. What do you champion?',
+      'Finance wants to cut costs. You have budget for one real initiative this ' +
+      'quarter. A new firewall appliance is tangible and the board likes visible ' +
+      'hardware; staff security-awareness training is less flashy. What do you ' +
+      'champion?',
     facilities: ['water', 'power'],
     roles: ['supervisor'],
     choices: [
       {
         id: 'buy_firewall',
-        label: 'Buy the firewall — it looks decisive to the board.',
+        label: 'Invest in the new firewall appliance.',
         effects: [
           { key: 'budget', amount: -20 },
           { key: 'integrity', amount: 3 },
@@ -465,8 +504,22 @@ const EVENTS = [
           'the human layer leaves your biggest attack surface untouched.',
       },
       {
+        id: 'token_training',
+        label: 'Save money with a one-off slide deck emailed to staff to read.',
+        effects: [
+          { key: 'integrity', amount: -2 },
+          { key: 'morale', amount: -2 },
+        ],
+        isRecommended: false,
+        outcome:
+          'Check-the-box training looks like action but barely moves behavior. ' +
+          'A slide deck nobody engages with won\u2019t build the reporting habits ' +
+          'and instincts that actually stop social engineering. Awareness has to ' +
+          'be recurring, interactive, and reinforced.',
+      },
+      {
         id: 'fund_training',
-        label: 'Fund organization-wide security-awareness training.',
+        label: 'Fund recurring, interactive organization-wide awareness training.',
         effects: [
           { key: 'budget', amount: -10 },
           { key: 'integrity', amount: 8 },
@@ -507,7 +560,7 @@ const EVENTS = [
     choices: [
       {
         id: 'business_as_usual',
-        label: 'Keep all access active for a smooth two-week handover.',
+        label: 'Leave all their access in place so the handover goes smoothly.',
         effects: [{ key: 'integrity', amount: -25 }],
         isRecommended: false,
         outcome:
@@ -515,9 +568,20 @@ const EVENTS = [
           'the notice period, sensitive data walked out the door.',
       },
       {
+        id: 'just_monitor',
+        label: 'Keep their access but monitor their activity closely until they leave.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'Monitoring is good, but detection alone is not prevention \u2014 by the ' +
+          'time an alert fires, the damage (copied data, altered settings) may ' +
+          'be done. Pair monitoring with actually removing access the person no ' +
+          'longer needs.',
+      },
+      {
         id: 'reduce_access',
         label:
-          'Apply least privilege: revoke sensitive access, monitor, document handover.',
+          'Apply least privilege: revoke sensitive access, monitor, and document the handover.',
         effects: [
           { key: 'integrity', amount: 8 },
           { key: 'morale', amount: -3 },
@@ -551,14 +615,15 @@ const EVENTS = [
     title: 'A Vendor Software Update',
     prompt:
       'A trusted vendor pushes a routine software update for your monitoring ' +
-      'platform. Deploying everywhere immediately is convenient. But you recall ' +
-      'that trusted updates have been weaponized before. What policy do you set?',
+      'platform. Deploying everywhere immediately is convenient, and the vendor ' +
+      'is reputable. But trusted updates have been weaponized before. What policy ' +
+      'do you set?',
     facilities: ['water', 'power'],
     roles: ['supervisor'],
     choices: [
       {
         id: 'auto_deploy_all',
-        label: 'Auto-deploy to all systems immediately for convenience.',
+        label: 'Push the update to all systems right away \u2014 the vendor is trusted.',
         effects: [{ key: 'integrity', amount: -20 }],
         isRecommended: false,
         outcome:
@@ -567,8 +632,19 @@ const EVENTS = [
           'everywhere at once.',
       },
       {
+        id: 'quick_test_then_all',
+        label: 'Install it on one test machine for a day, then roll out everywhere.',
+        effects: [{ key: 'integrity', amount: -8 }],
+        isRecommended: false,
+        outcome:
+          'A brief smoke test catches broken updates \u2014 but not a malicious one ' +
+          'engineered to lie low. Without verifying the update\u2019s integrity ' +
+          '(signatures/hashes) and monitoring after a staged rollout, a ' +
+          'weaponized update still reaches everything.',
+      },
+      {
         id: 'staged_rollout',
-        label: 'Require staged rollout, integrity verification, and monitoring.',
+        label: 'Verify the update\u2019s integrity, then roll out in stages with monitoring.',
         effects: [
           { key: 'integrity', amount: 8 },
           { key: 'uptime', amount: -3 },
@@ -943,15 +1019,16 @@ const EVENTS = [
     title: 'The Compliance vs. Convenience Debate',
     prompt:
       'Clinical staff are frustrated that security steps slow them down, and ' +
-      'finance is eyeing the security budget. You can fund a program to ' +
-      'encrypt devices and enforce MFA, or defer it to keep clinicians happy ' +
-      'and costs down this quarter. What do you champion?',
+      'finance is eyeing the security budget. A full program would encrypt ' +
+      'devices and enforce MFA, but it costs money and adds friction. Several ' +
+      'paths are on the table. What do you champion?',
     facilities: ['hospital'],
     roles: ['supervisor'],
     choices: [
       {
         id: 'defer_security',
-        label: 'Defer it \u2014 keep clinicians happy and costs low for now.',
+        label:
+          'Hold off this quarter and revisit the program when budgets are less tight.',
         effects: [
           { key: 'integrity', amount: -18 },
           { key: 'morale', amount: 4 },
@@ -959,11 +1036,29 @@ const EVENTS = [
         isRecommended: false,
         outcome:
           'Unencrypted devices and password-only logins are exactly how patient ' +
-          'data gets breached \u2014 and how regulators levy heavy penalties.',
+          'data gets breached \u2014 and how regulators levy heavy penalties. ' +
+          '"Later" tends to arrive as an incident.',
+      },
+      {
+        id: 'partial_one_control',
+        label:
+          'Save money by funding just one control for now \u2014 encryption OR MFA, not both.',
+        effects: [
+          { key: 'integrity', amount: -4 },
+          { key: 'budget', amount: -6 },
+        ],
+        isRecommended: false,
+        outcome:
+          'A reasonable-sounding compromise that still leaves a gap. Encryption ' +
+          'without MFA means a stolen or phished password still opens the door; ' +
+          'MFA without encryption means a lost laptop still spills patient data. ' +
+          'These controls cover different risks \u2014 one is not a substitute for ' +
+          'the other.',
       },
       {
         id: 'fund_with_workflow',
-        label: 'Fund encryption + MFA, and co-design workflows with clinicians.',
+        label:
+          'Fund both encryption and MFA, and co-design the rollout with clinicians.',
         effects: [
           { key: 'integrity', amount: 10 },
           { key: 'budget', amount: -12 },
@@ -973,7 +1068,8 @@ const EVENTS = [
         outcome:
           'You protected patient data and kept care usable by designing ' +
           'security *with* clinicians, not against them. Encryption and MFA are ' +
-          'baseline safeguards; involving staff keeps them adopted.',
+          'baseline safeguards that cover different risks; involving staff keeps ' +
+          'them adopted.',
       },
     ],
     learning: {
