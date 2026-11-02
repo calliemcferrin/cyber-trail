@@ -1284,7 +1284,7 @@ const EVENTS = [
     choices: [
       {
         id: 'trust_hmi',
-        label: 'Trust the HMI — it says normal, so stand down.',
+        label: 'Go with the HMI readings, which show everything normal.',
         effects: [{ key: 'integrity', amount: -28 }],
         isRecommended: false,
         outcome:
@@ -1352,13 +1352,24 @@ const EVENTS = [
     choices: [
       {
         id: 'ignore_noise',
-        label: 'Failed logins are just noise — ignore them.',
+        label: 'Treat the failed logins as background noise and take no action.',
         effects: [{ key: 'integrity', amount: -24 }],
         isRecommended: false,
         outcome:
           'Those "successes" were account takeovers via credential stuffing. ' +
           'Reused passwords from other breaches let attackers walk in the front ' +
           'door.',
+      },
+      {
+        id: 'block_ips_only',
+        label: 'Block the source IP addresses the attempts are coming from.',
+        effects: [{ key: 'integrity', amount: -10 }],
+        isRecommended: false,
+        outcome:
+          'IP blocking swats at symptoms \u2014 the attempts come from thousands of ' +
+          'rotating addresses, and the real problem is that reused passwords ' +
+          'work at all. Without MFA and resetting the cracked accounts, the ' +
+          'takeovers continue from new IPs.',
       },
       {
         id: 'mfa_lockout_reset',
@@ -1409,7 +1420,7 @@ const EVENTS = [
     choices: [
       {
         id: 'click_through',
-        label: 'Tell everyone to click through the certificate warning to keep working.',
+        label: 'Have staff accept the certificate warning so work can continue.',
         effects: [{ key: 'integrity', amount: -26 }],
         isRecommended: false,
         outcome:
@@ -1418,9 +1429,20 @@ const EVENTS = [
           'warnings hands them the keys.',
       },
       {
+        id: 'move_to_wifi',
+        label: 'Switch everyone to a different Wi-Fi network and carry on.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'Changing networks might dodge this one rogue device, but it ignores ' +
+          'the intruder already on your network and the credentials/sessions ' +
+          'they may have captured. You need to find and remove the device, force ' +
+          'validated TLS, and rotate what was exposed.',
+      },
+      {
         id: 'investigate_rogue',
         label:
-          'Treat the warning as hostile: pull the rogue device and enforce verified TLS.',
+          'Treat the warning as hostile: find the rogue device and enforce verified TLS.',
         effects: [
           { key: 'integrity', amount: 9 },
           { key: 'uptime', amount: -3 },
@@ -1466,7 +1488,7 @@ const EVENTS = [
     choices: [
       {
         id: 'ignore_webapp',
-        label: 'It is just the public website — low priority, leave it.',
+        label: 'Deprioritize it \u2014 it\u2019s only the public website, not core systems.',
         effects: [{ key: 'integrity', amount: -22 }],
         isRecommended: false,
         outcome:
@@ -1475,9 +1497,19 @@ const EVENTS = [
           'web risk.',
       },
       {
+        id: 'block_attacker_ip',
+        label: 'Block the attacker\u2019s IP at the WAF and consider it handled.',
+        effects: [{ key: 'integrity', amount: -10 }],
+        isRecommended: false,
+        outcome:
+          'Blocking the prober stops today\u2019s scan but leaves the injectable code ' +
+          'wide open \u2014 the next attacker (or the same one from a new IP) walks ' +
+          'right in. The WAF buys time; you still have to fix the vulnerable code.',
+      },
+      {
         id: 'patch_parametrize',
         label:
-          'Block the attack at the WAF, then fix the code with parameterized queries and input validation.',
+          'Shield it at the WAF now, then fix the code with parameterized queries and input validation.',
         effects: [
           { key: 'integrity', amount: 9 },
           { key: 'budget', amount: -5 },
@@ -1522,7 +1554,7 @@ const EVENTS = [
     choices: [
       {
         id: 'wait_for_patch',
-        label: 'Wait for the vendor to release a patch and change nothing meanwhile.',
+        label: 'Wait for the vendor\u2019s patch and keep the appliance running as-is.',
         effects: [{ key: 'integrity', amount: -25 }],
         isRecommended: false,
         outcome:
@@ -1530,9 +1562,20 @@ const EVENTS = [
           'breached. Zero-days demand immediate risk reduction, not patience.',
       },
       {
+        id: 'waf_signature_only',
+        label: 'Add a detection signature but keep the appliance online for support.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'A signature may catch known exploit patterns, but a fresh zero-day ' +
+          'often evades it \u2014 and leaving the appliance internet-exposed keeps ' +
+          'the door open. You need to actually cut exposure and hunt for a ' +
+          'compromise that may already have happened.',
+      },
+      {
         id: 'mitigate_now',
         label:
-          'Apply vendor mitigations, restrict/disable exposure, and hunt for compromise now.',
+          'Apply vendor mitigations, pull it off the internet, and hunt for compromise now.',
         effects: [
           { key: 'integrity', amount: 8 },
           { key: 'uptime', amount: -7 },
@@ -1581,19 +1624,31 @@ const EVENTS = [
     choices: [
       {
         id: 'sign_in_link',
-        label: 'Sign in through the link so you are not marked non-compliant.',
+        label: 'Sign in through the link to acknowledge before the deadline.',
         effects: [
           { key: 'integrity', amount: -25 },
           { key: 'morale', amount: -4 },
         ],
         isRecommended: false,
         outcome:
-          'The look-alike domain harvested your credentials. Safety and ' +
-          'compliance themes are potent phishing lures in industrial settings.',
+          'The look-alike domain ("cascade-gas-safety.net") harvested your ' +
+          'credentials. Safety and compliance themes are potent phishing lures ' +
+          'in industrial settings.',
+      },
+      {
+        id: 'forward_coworkers',
+        label: 'Forward it to coworkers to ask whether the bulletin looks legit.',
+        effects: [{ key: 'integrity', amount: -8 }],
+        isRecommended: false,
+        outcome:
+          'Asking around beats clicking \u2014 but forwarding a phishing email spreads ' +
+          'the lure to more potential victims and delays a real response. Report ' +
+          'it to security instead, and reach the intranet through your own ' +
+          'bookmark.',
       },
       {
         id: 'verify_intranet',
-        label: 'Go to the real intranet directly and report the email.',
+        label: 'Reach the real intranet from your own bookmark and report the email.',
         effects: [{ key: 'morale', amount: 5 }],
         isRecommended: true,
         outcome:
@@ -1632,12 +1687,23 @@ const EVENTS = [
     choices: [
       {
         id: 'let_them_plug',
-        label: 'Sure — let them plug their laptop into the OT network.',
+        label: 'Let them connect their laptop so the diagnostics get done quickly.',
         effects: [{ key: 'integrity', amount: -22 }],
         isRecommended: false,
         outcome:
           'An unvetted device on the OT network can carry malware straight to ' +
           'control systems. Convenience bypassed every safeguard.',
+      },
+      {
+        id: 'watch_them_plug',
+        label: 'Let them plug in, but stay and watch while they work.',
+        effects: [{ key: 'integrity', amount: -14 }],
+        isRecommended: false,
+        outcome:
+          'Supervising is better than walking away, but you can\u2019t see malware ' +
+          'that an infected laptop pushes onto the OT network the moment it ' +
+          'connects. The risk is the unvetted *device*, not just the person \u2014 ' +
+          'it has to go through the approved, scanned-equipment process.',
       },
       {
         id: 'follow_process',
@@ -1680,7 +1746,7 @@ const EVENTS = [
     choices: [
       {
         id: 'check_contents',
-        label: 'Plug it into the control-room workstation to check whose it is.',
+        label: 'Plug it into the control-room workstation to see whose it is.',
         effects: [{ key: 'integrity', amount: -30 }],
         isRecommended: false,
         outcome:
@@ -1688,8 +1754,19 @@ const EVENTS = [
           'industrial malware spreads. The drive auto-ran a payload on mount.',
       },
       {
+        id: 'check_on_spare',
+        label: 'Check it on a spare, non-networked office PC instead of the OT one.',
+        effects: [{ key: 'integrity', amount: -14 }],
+        isRecommended: false,
+        outcome:
+          'Keeping it off the OT workstation is smart thinking, but any machine ' +
+          'you plug it into can still be infected \u2014 and malware can spread from ' +
+          'there or via the drive later. Unknown media shouldn\u2019t be connected to ' +
+          'anything; hand it to security.',
+      },
+      {
         id: 'turn_in',
-        label: 'Do not plug it in anywhere; hand it to security.',
+        label: 'Don\u2019t connect it anywhere; hand it to security.',
         effects: [{ key: 'morale', amount: 4 }],
         isRecommended: true,
         outcome:
@@ -1727,7 +1804,7 @@ const EVENTS = [
     choices: [
       {
         id: 'flatten_network',
-        label: 'Approve it — cheaper and more convenient for everyone.',
+        label: 'Approve the flattened network to cut costs and simplify monitoring.',
         effects: [
           { key: 'integrity', amount: -22 },
           { key: 'budget', amount: 8 },
@@ -1739,9 +1816,20 @@ const EVENTS = [
           'Pipeline shut down operations.',
       },
       {
+        id: 'single_direct_link',
+        label: 'Compromise: allow just one direct IT\u2013OT link for the monitoring data.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'One "small" direct link is still a direct path from the IT network ' +
+          'into pipeline controls \u2014 attackers only need one. Monitoring data ' +
+          'should cross through a controlled DMZ (ideally one-way), not a flat ' +
+          'connection, no matter how limited it seems.',
+      },
+      {
         id: 'fund_segmentation',
         label:
-          'Reject it; fund proper IT/OT segmentation, monitoring, and a DMZ.',
+          'Reject it and fund proper IT/OT segmentation, monitoring, and a DMZ.',
         effects: [
           { key: 'integrity', amount: 10 },
           { key: 'budget', amount: -12 },
@@ -1785,7 +1873,7 @@ const EVENTS = [
     choices: [
       {
         id: 'pay_fast',
-        label: 'Pay the ransom quickly to end the public pressure.',
+        label: 'Pay the ransom to get decryption keys and restore service fastest.',
         effects: [
           { key: 'budget', amount: -30 },
           { key: 'integrity', amount: -6 },
@@ -1797,9 +1885,23 @@ const EVENTS = [
           'often slow and incomplete. It is not a recovery plan.',
       },
       {
+        id: 'pay_and_recover',
+        label: 'Hedge: pay the ransom but also run the recovery plan in parallel.',
+        effects: [
+          { key: 'budget', amount: -28 },
+          { key: 'integrity', amount: -2 },
+        ],
+        isRecommended: false,
+        outcome:
+          'If your backups and plan can recover you, the payment was wasted money ' +
+          'that funded the attackers and marked you as willing to pay again. ' +
+          'Paying as a reflex "just in case" isn\u2019t a hedge \u2014 it\u2019s the cost ' +
+          'preparation is meant to let you avoid.',
+      },
+      {
         id: 'execute_ir_plan',
         label:
-          'Execute the incident-response plan: engage authorities, restore from backups, communicate.',
+          'Run the incident-response plan: engage authorities, restore from backups, communicate.',
         effects: [
           { key: 'integrity', amount: 8 },
           { key: 'uptime', amount: -6 },
@@ -1844,12 +1946,23 @@ const EVENTS = [
     choices: [
       {
         id: 'grant_always_on',
-        label: 'Grant the always-on connection with the shared account — support matters.',
+        label: 'Grant the always-on connection with the shared account for fast support.',
         effects: [{ key: 'integrity', amount: -20 }],
         isRecommended: false,
         outcome:
           'A standing remote path with a shared, unmonitored account is a prime ' +
           'target. Compromise the vendor and you compromise the pipeline.',
+      },
+      {
+        id: 'always_on_notify',
+        label: 'Allow the always-on link, but require the vendor to notify you before each use.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'A notify-first courtesy relies on the honor system and does nothing ' +
+          'if the vendor (or their shared account) is compromised \u2014 the standing ' +
+          'door is still open 24/7. Make access just-in-time, named, and ' +
+          'monitored, not permanent with a promise.',
       },
       {
         id: 'broker_access',
@@ -1904,12 +2017,23 @@ const EVENTS = [
     choices: [
       {
         id: 'allow_laptop',
-        label: 'Let them plug their laptop into the SCADA network.',
+        label: 'Let them connect their laptop so they can pull the diagnostics.',
         effects: [{ key: 'integrity', amount: -22 }],
         isRecommended: false,
         outcome:
           'An unvetted device on the control network can carry malware straight ' +
           'to the pumps and chemical controls. Convenience bypassed the safeguards.',
+      },
+      {
+        id: 'allow_but_watch',
+        label: 'Allow it but stay and supervise them the whole time.',
+        effects: [{ key: 'integrity', amount: -14 }],
+        isRecommended: false,
+        outcome:
+          'Watching the person doesn\u2019t stop an infected laptop from pushing ' +
+          'malware onto the SCADA network the instant it connects. The risk is ' +
+          'the unvetted device itself \u2014 it has to go through approved, scanned ' +
+          'equipment, not just supervision.',
       },
       {
         id: 'require_process',
@@ -1954,7 +2078,7 @@ const EVENTS = [
     choices: [
       {
         id: 'read_credentials',
-        label: 'Read them the HMI login so they can fix it in time.',
+        label: 'Read them the HMI login so they can push the urgent fix.',
         effects: [{ key: 'integrity', amount: -28 }],
         isRecommended: false,
         outcome:
@@ -1963,8 +2087,19 @@ const EVENTS = [
           'parts of Ukraine in 2015.',
       },
       {
+        id: 'share_then_change',
+        label: 'Read them the login, but plan to change it right after they\u2019re done.',
+        effects: [{ key: 'integrity', amount: -22 }],
+        isRecommended: false,
+        outcome:
+          'Changing the password afterward is too late \u2014 the moment you read it ' +
+          'out, a stranger has live control of substation breakers and can act ' +
+          '(or set up persistence) immediately. Control-system credentials must ' +
+          'never be shared, even "temporarily."',
+      },
+      {
         id: 'verify_and_refuse',
-        label: 'Refuse to share credentials; verify the request through official channels.',
+        label: 'Refuse to share credentials and verify the request through official channels.',
         effects: [{ key: 'morale', amount: 4 }],
         isRecommended: true,
         outcome:
@@ -2006,7 +2141,7 @@ const EVENTS = [
     choices: [
       {
         id: 'approve_flatten',
-        label: 'Approve it — cheaper and more convenient.',
+        label: 'Approve the flattened network for easier monitoring and lower cost.',
         effects: [
           { key: 'integrity', amount: -22 },
           { key: 'budget', amount: 8 },
@@ -2018,8 +2153,19 @@ const EVENTS = [
           'changed from the outside.',
       },
       {
+        id: 'single_monitoring_link',
+        label: 'Approve just one direct link for the monitoring data, nothing more.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'Even a single direct IT\u2013OT link is a path an attacker can ride from ' +
+          'the office network to the pumps and chemical controls. Monitoring data ' +
+          'should cross a controlled, monitored DMZ (ideally one-way) \u2014 not a ' +
+          'flat connection, however limited it sounds.',
+      },
+      {
         id: 'fund_segmentation_water',
-        label: 'Reject it; fund IT/OT segmentation, a monitored DMZ, and strong access controls.',
+        label: 'Reject it and fund IT/OT segmentation, a monitored DMZ, and strong access controls.',
         effects: [
           { key: 'integrity', amount: 10 },
           { key: 'budget', amount: -12 },
@@ -2062,12 +2208,23 @@ const EVENTS = [
     choices: [
       {
         id: 'grant_standing_access',
-        label: 'Grant the always-on connection with the shared account.',
+        label: 'Grant the always-on connection with the shared account for faster support.',
         effects: [{ key: 'integrity', amount: -20 }],
         isRecommended: false,
         outcome:
           'A standing, unmonitored remote path with a shared account is a prime ' +
           'target. Compromise the vendor and you compromise the grid controls.',
+      },
+      {
+        id: 'standing_vpn_only',
+        label: 'Allow the standing connection, but only over the vendor\u2019s VPN.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'A VPN encrypts the link but still leaves a permanent, shared-account ' +
+          'door into grid controls \u2014 if the vendor is breached, so are you, and ' +
+          'shared logins make it impossible to tell who did what. Use just-in-' +
+          'time, named, monitored access instead.',
       },
       {
         id: 'broker_jit_access',
@@ -2118,13 +2275,24 @@ const EVENTS = [
     choices: [
       {
         id: 'reuse_it',
-        label: 'Reuse your trusty personal password — one less thing to forget.',
+        label: 'Reuse your long-standing personal password so it\u2019s easy to remember.',
         effects: [{ key: 'integrity', amount: -18 }],
         isRecommended: false,
         outcome:
           'If that password leaked in any past breach, attackers can now walk ' +
           'into your work account via credential stuffing. Reuse turns one ' +
           'breach into many.',
+      },
+      {
+        id: 'unique_no_mfa',
+        label: 'Set a new unique password, but skip MFA to save a step at login.',
+        effects: [{ key: 'integrity', amount: -6 }],
+        isRecommended: false,
+        outcome:
+          'A unique password is a big improvement \u2014 but skipping MFA leaves you ' +
+          'exposed to phishing and password guessing. If that one password is ' +
+          'ever captured, nothing else stands in the way. MFA is the cheap, ' +
+          'high-value second layer.',
       },
       {
         id: 'unique_plus_mfa',
@@ -2171,7 +2339,7 @@ const EVENTS = [
     choices: [
       {
         id: 'process_wire',
-        label: 'Process the wire quickly and quietly as asked.',
+        label: 'Process the wire as asked so your director isn\u2019t held up.',
         effects: [
           { key: 'budget', amount: -20 },
           { key: 'morale', amount: -4 },
@@ -2182,8 +2350,19 @@ const EVENTS = [
           'uses authority, urgency, and secrecy to rush payments out the door.',
       },
       {
+        id: 'reply_to_confirm',
+        label: 'Reply to the email to confirm the details before you send the money.',
+        effects: [{ key: 'budget', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'Replying feels like verifying, but if the account is spoofed or ' +
+          'compromised, your "confirmation" goes straight to the attacker, who ' +
+          'happily confirms. Verification has to be out-of-band \u2014 a known phone ' +
+          'number, not the email thread itself.',
+      },
+      {
         id: 'verify_out_of_band',
-        label: 'Verify the request out-of-band via a known phone number before acting.',
+        label: 'Verify out-of-band via a known phone number before doing anything.',
         effects: [{ key: 'morale', amount: 4 }],
         isRecommended: true,
         outcome:
@@ -2223,13 +2402,24 @@ const EVENTS = [
     choices: [
       {
         id: 'skip_drill',
-        label: 'Skip it \u2014 the plan exists, and everyone is busy.',
+        label: 'Rely on the existing written plan rather than spend a day drilling.',
         effects: [{ key: 'integrity', amount: -14 }],
         isRecommended: false,
         outcome:
           'An untested plan tends to fail under real pressure \u2014 unclear roles, ' +
           'stale contacts, missing steps. You find the gaps during the crisis ' +
           'instead of before it.',
+      },
+      {
+        id: 'email_the_plan',
+        label: 'Skip the exercise; email the plan to staff to read and acknowledge.',
+        effects: [{ key: 'integrity', amount: -6 }],
+        isRecommended: false,
+        outcome:
+          'Reading a document is not the same as rehearsing under pressure. ' +
+          'People skim it, roles stay untested, and stale contacts go unnoticed ' +
+          'until a real incident exposes them. A tabletop actually surfaces the ' +
+          'gaps while it\u2019s still cheap to fix them.',
       },
       {
         id: 'run_tabletop',
@@ -2277,7 +2467,7 @@ const EVENTS = [
     choices: [
       {
         id: 'defer_monitoring',
-        label: 'Defer it \u2014 logging is invisible and other projects look better.',
+        label: 'Prioritize the more visible projects and revisit logging later.',
         effects: [{ key: 'integrity', amount: -16 }],
         isRecommended: false,
         outcome:
@@ -2285,8 +2475,19 @@ const EVENTS = [
           'for months. You cannot respond to what you cannot see.',
       },
       {
+        id: 'collect_no_monitor',
+        label: 'Fund central log collection now; add monitoring and alerting later.',
+        effects: [{ key: 'integrity', amount: -4 }],
+        isRecommended: false,
+        outcome:
+          'Collecting logs is a start, but logs nobody watches are just storage. ' +
+          'Attacks still go unnoticed until someone happens to look. Collection ' +
+          'and active monitoring/alerting need to land together to actually ' +
+          'shorten detection time.',
+      },
+      {
         id: 'fund_monitoring',
-        label: 'Fund centralized logging, monitoring, and alerting.',
+        label: 'Fund centralized logging, monitoring, and alerting together.',
         effects: [
           { key: 'integrity', amount: 9 },
           { key: 'budget', amount: -10 },
