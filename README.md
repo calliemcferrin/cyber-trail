@@ -67,3 +67,18 @@ See [`docs/GAME_DESIGN.md`](./docs/GAME_DESIGN.md) for the full design.
 
 All "attacks" in this game are **simulated, narrative, educational scenarios**.
 This project contains no functional exploits, malware, or attack tooling.
+
+## Collaboration & trademarks
+
+This project is developed in collaboration with the **Marshall University
+Institute for Cyber Security**.
+
+Marshall University's names, logos, and marks — including the Marshall "M"
+wordmark, **Marco the Bison**, the "Cyber Bison" mark, and "Marshall University
+Institute for Cyber Security" — are **trademarks of Marshall University** and are
+used **with permission**. They remain the property of Marshall University; their
+inclusion here does not transfer any rights, and they may not be reused from this
+repository without Marshall University's authorization.
+
+All other game content is part of this educational project. The in-game
+"attacks" are simulated, narrative scenarios — see the Safety note above.

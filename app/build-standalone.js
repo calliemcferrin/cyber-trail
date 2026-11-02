@@ -23,6 +23,7 @@ function dataUri(file, mime) {
 }
 const cyberBisonUri = dataUri('cyber-bison.jpg', 'image/jpeg');
 const marshallMUri = dataUri('marshall-m.png', 'image/png');
+const marcoBisonUri = dataUri('marco-bison.png', 'image/png');
 
 const { FACILITIES, ROLES, EVENTS } = require('./content.js');
 const { GLOSSARY } = require('./glossary.js');
@@ -330,6 +331,10 @@ function choose(eventId,choiceId){
     render([
       el('p',{class:'eyebrow',text:'// MISSION LOADER'}),
       el('h2',{class:'subtitle',text:'Import your mission data'}),
+      role==='supervisor' ? el('div',{class:'mascot-cue'},[
+        el('img',{class:'mascot-img',src:'${marcoBisonUri}',alt:'Marco the Bison'}),
+        el('p',{class:'mascot-cap',text:'Marshall\\u2019s mascot stands guard here.'})
+      ]) : null,
       el('div',{class:'panel'},[ screen, el('div',{class:'term-input-row'},[promptSpan,input]) ]),
       el('div',{class:'btn-row'},[ el('button',{class:'btn secondary',onClick:roleScreen,text:'◀ Back'}) ])
     ]);

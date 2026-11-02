@@ -315,6 +315,13 @@
     render([
       el('p', { class: 'eyebrow', text: '// MISSION LOADER' }),
       el('h2', { class: 'subtitle', text: 'Import your mission data' }),
+      // Supervisor access is gated by the mascot's name — show Marco as a cue.
+      role === 'supervisor'
+        ? el('div', { class: 'mascot-cue' }, [
+            el('img', { class: 'mascot-img', src: 'marco-bison.png', alt: 'Marco the Bison' }),
+            el('p', { class: 'mascot-cap', text: 'Marshall\u2019s mascot stands guard here.' }),
+          ])
+        : null,
       el('div', { class: 'panel' }, [
         screen,
         el('div', { class: 'term-input-row' }, [promptSpan, input]),

@@ -166,6 +166,17 @@ body::before {
   height: auto;
   flex: 0 0 auto;
 }
+
+/* Marco the Bison on the supervisor access gate */
+.mascot-cue { text-align: center; margin: 0.2rem 0 1rem; }
+.mascot-img {
+  width: min(150px, 40vw); height: auto;
+  filter: drop-shadow(0 0 14px rgba(91, 255, 122, 0.4));
+}
+.mascot-cap {
+  color: var(--dim); font-size: 0.85rem; font-style: italic;
+  margin: 0.3rem 0 0;
+}
 .prompt-text {
   font-size: 1.1rem;
   line-height: 1.7;
