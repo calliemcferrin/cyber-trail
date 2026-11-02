@@ -103,6 +103,29 @@ function validateMiniGame(body) {
       }
       cleanResult.assignments = a;
     }
+    // Terminal mini-game: { level, steps: {stepId: "typed cmd"}, reveals: id[] }
+    if (result.level !== undefined) {
+      if (['guided', 'comfortable', 'expert'].indexOf(result.level) < 0) {
+        return { ok: false };
+      }
+      cleanResult.level = result.level;
+    }
+    if (result.steps !== undefined) {
+      const st = result.steps;
+      if (st === null || typeof st !== 'object' || Array.isArray(st)) return { ok: false };
+      const keys = Object.keys(st);
+      if (keys.length > 32) return { ok: false };
+      for (const k of keys) {
+        // Key must be an id; value is a short free-text command string.
+        if (!isId(k)) return { ok: false };
+        if (typeof st[k] !== 'string' || st[k].length > 200) return { ok: false };
+      }
+      cleanResult.steps = st;
+    }
+    if (result.reveals !== undefined) {
+      if (!isIdArray(result.reveals)) return { ok: false };
+      cleanResult.reveals = result.reveals;
+    }
   }
 
   return {

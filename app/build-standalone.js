@@ -121,6 +121,15 @@ function scoreMiniGame(def, result, skipped){
     var score=rp/order.length; if(sub[0]!==order[0]) score=Math.min(score,0.5);
     return bandFromScore(clampPct(score));
   }
+  if(t==='terminal'){
+    function normCmd(s){ if(typeof s!=='string') return ''; return s.replace(/[\\u2018\\u2019\\u201C\\u201D]/g,"'").replace(/"/g,"'").toLowerCase().replace(/\\s+/g,' ').replace(/\\s*;\\s*\$/,'').trim(); }
+    var acc=def.answer.accepted, sids=def.config.steps.map(function(s){return s.id;});
+    var sub=(result&&result.steps)||{}, reveals=(result&&result.reveals)||[];
+    var solved=0;
+    sids.forEach(function(id){ var typed=normCmd(sub[id]); if(!typed) return; var pats=(acc[id]||[]).map(normCmd); if(pats.indexOf(typed)>=0) solved++; });
+    var score=solved/sids.length - 0.1*reveals.filter(function(id){return sids.indexOf(id)>=0;}).length;
+    return bandFromScore(clampPct(score));
+  }
   return 'fail';
 }
 function submitMiniGameLocal(eventId, minigameId, result, skipped){
@@ -339,8 +348,74 @@ function choose(eventId,choiceId){
       wrap.appendChild(pool);
       wrap.appendChild(el('div',{class:'btn-row'},[ el('button',{class:'btn secondary',onClick:function(){ chosen.length=0; redraw(); },text:'↺ Reset order'}) ]));
       wrap.appendChild(mgButtons(ev,function(){ return { order:chosen.slice() }; }));
+    } else if(mg.type==='terminal'){
+      wrap.appendChild(terminalGameSA(ev, cfg));
     }
     return wrap;
+  }
+
+  function terminalGameSA(ev, cfg){
+    var host=el('div',{class:'terminal-host'});
+    function levelSelect(){
+      host.textContent='';
+      host.appendChild(el('p',{class:'prompt-text',text:cfg.scenario}));
+      host.appendChild(el('p',{class:'mg-sublabel',text:'How comfortable are you with Linux?'}));
+      function card(level,title,desc){ return el('button',{class:'card term-level',onClick:function(){ runGame(level); }},[ el('h3',{text:title}), el('p',{text:desc}) ]); }
+      host.appendChild(el('div',{class:'term-levels'},[
+        card('guided','🟢 New to Linux','I\\u2019ll show you each command and explain it. You still type it.'),
+        card('comfortable','🟡 Comfortable','You get a command palette and a "reveal" option if stuck.'),
+        card('expert','🔴 Expert','Just the task and a bare prompt. No hints.')
+      ]));
+      host.appendChild(el('p',{class:'meta',text:'You can reach a perfect score at any level — the level only changes how much help you get.'}));
+    }
+    function runGame(level){
+      var steps=cfg.steps, idx=0, typed={}, reveals=[];
+      host.textContent='';
+      var banner=el('div',{class:'term-banner',text:'LEVEL: '+({guided:'NEW TO LINUX (guided)',comfortable:'COMFORTABLE',expert:'EXPERT'}[level])});
+      var screen=el('div',{class:'term-screen'});
+      var taskBox=el('div',{class:'term-task'});
+      var helpBox=el('div',{class:'term-help'});
+      var input=el('input',{class:'term-input',type:'text',autocomplete:'off',spellcheck:'false',placeholder:'type a command and press Enter'});
+      function print(line,cls){ screen.appendChild(el('div',{class:'term-line'+(cls?' '+cls:'')},[line])); screen.scrollTop=screen.scrollHeight; }
+      function printMulti(txt,cls){ String(txt).split('\\n').forEach(function(l){ print(l,cls); }); }
+      function loadStep(){
+        if(idx>=steps.length) return finish();
+        var s=steps[idx];
+        taskBox.textContent='';
+        taskBox.appendChild(el('span',{class:'term-step-num',text:'STEP '+(idx+1)+'/'+steps.length+' — '}));
+        taskBox.appendChild(document.createTextNode(s.task));
+        helpBox.textContent='';
+        if(level==='guided'){
+          helpBox.appendChild(el('div',{class:'term-guide'},[ el('div',{},[el('span',{class:'term-cmd-hint',text:s.canonical})]), el('div',{class:'term-explain',text:s.explain}) ]));
+        } else if(level==='comfortable'){
+          var pal=el('div',{class:'term-palette'}, (s.palette||[]).map(function(c){ return el('button',{class:'term-pal-btn',onClick:function(){ input.value=c; input.focus(); }},[c]); }));
+          var reveal=el('button',{class:'term-reveal',onClick:function(){ if(reveals.indexOf(s.id)<0) reveals.push(s.id); input.value=s.canonical; input.focus(); print('(revealed: '+s.canonical+')','term-dim'); },text:'reveal answer'});
+          helpBox.appendChild(el('div',{class:'term-help-row'},[ el('span',{class:'mg-label',text:'commands: '}), pal ]));
+          helpBox.appendChild(reveal);
+        }
+        input.value=''; input.focus();
+      }
+      function matchesStep(s,raw){ var norm=(raw||'').replace(/"/g,"'").toLowerCase().replace(/\\s+/g,' ').replace(/\\s*;\\s*\$/,'').trim(); var canon=s.canonical.replace(/"/g,"'").toLowerCase().replace(/\\s+/g,' ').trim(); return norm===canon; }
+      function submitLine(){
+        var s=steps[idx]; var raw=input.value.trim(); if(!raw) return;
+        print(cfg.prompt+' '+raw); typed[s.id]=raw;
+        if(matchesStep(s,raw)){ printMulti(s.output,'term-out'); print('✓ nice — that\\u2019s the right tool for this step.','term-ok'); idx+=1; setTimeout(loadStep,150); }
+        else { print('Hmm, that didn\\u2019t surface what you need. Try another command'+(level==='expert'?'.':(level==='comfortable'?' (or use the palette / reveal).':' — check the suggested command above.')),'term-dim'); }
+      }
+      function finish(){ print('— investigation complete —','term-ok'); input.disabled=true; }
+      input.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); submitLine(); } });
+      host.appendChild(banner);
+      host.appendChild(taskBox);
+      host.appendChild(screen);
+      var inputRow=el('div',{class:'term-input-row'},[ el('span',{class:'term-prompt',text:cfg.prompt+' '}), input ]);
+      host.appendChild(inputRow);
+      host.appendChild(helpBox);
+      host.appendChild(mgButtons(ev,function(){ return { level:level, steps:typed, reveals:reveals.slice() }; }));
+      print(cfg.scenario,'term-dim');
+      loadStep();
+    }
+    levelSelect();
+    return host;
   }
   function debriefScreen(){
     var g=state.game; var o=g.lastOutcome; if(!o) return journeyScreen(); var L=o.learning;

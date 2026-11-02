@@ -458,6 +458,152 @@ const MINIGAMES = {
       },
     },
   },
+
+  // ───────────────────── Terminal: Linux intrusion triage ─────────────────────
+  // Adaptive difficulty: the player first picks a comfort level, which changes
+  // how much HELP they get (not the score ceiling — perfect is reachable at any
+  // level). A safe SIMULATION: no real shell, commands are matched to show
+  // canned output. The server validates the submitted commands per step.
+  terminal_linux_triage: {
+    type: 'terminal',
+    attackType: 'Intrusion Investigation (Linux basics)',
+    config: {
+      instructions:
+        'An alert fired on a Linux server. Investigate it from the terminal. ' +
+        'First, choose how much guidance you want \u2014 you can reach a perfect ' +
+        'score at any level.',
+      scenario:
+        'You are a cyber operator. An EDR alert flags unusual activity on ' +
+        '"wtp-scada-01". You have a shell. Work through the investigation one ' +
+        'command at a time.',
+      prompt: 'operator@wtp-scada-01:~$',
+      // Each step: the task, the canonical command (shown in guided mode), a
+      // plain-language explanation, a palette of candidate commands (shown in
+      // comfortable mode), and the simulated output on success.
+      steps: [
+        {
+          id: 'step_ls',
+          task: 'List the files in the current directory, including hidden ones.',
+          canonical: 'ls -la',
+          explain:
+            '`ls` lists directory contents; the `-l` flag shows details and ' +
+            '`-a` includes hidden files (names starting with a dot). Attackers ' +
+            'often hide files, so always look with `-a`.',
+          palette: ['ls', 'ls -la', 'pwd', 'cd', 'cat'],
+          output:
+            'total 28\\n' +
+            'drwxr-xr-x 3 operator operator 4096 .\\n' +
+            'drwxr-xr-x 6 root     root     4096 ..\\n' +
+            '-rw-r--r-- 1 operator operator  220 .bash_logout\\n' +
+            '-rwxr-xr-x 1 root     root     1337 .update.sh   <-- unexpected, hidden, root-owned',
+        },
+        {
+          id: 'step_who',
+          task: 'See who is currently logged in to the machine.',
+          canonical: 'who',
+          explain:
+            '`who` shows the users currently logged in and from where. An ' +
+            'unexpected session is a strong sign of an intruder.',
+          palette: ['who', 'whoami', 'ls', 'id', 'last'],
+          output:
+            'operator pts/0        10.0.0.5     (your session)\\n' +
+            'root     pts/1        203.0.113.77 <-- root login from an unknown external IP',
+        },
+        {
+          id: 'step_ps',
+          task: 'List all running processes to find anything suspicious.',
+          canonical: 'ps aux',
+          explain:
+            '`ps aux` lists every running process with its user and resource ' +
+            'use. Malware frequently shows up as an odd process eating CPU.',
+          palette: ['ps aux', 'top', 'ls -la', 'kill', 'jobs'],
+          output:
+            'USER  PID %CPU COMMAND\\n' +
+            'root  931 98.7 /tmp/.update.sh   <-- suspicious script pegging the CPU\\n' +
+            'root    1  0.0 /sbin/init',
+        },
+        {
+          id: 'step_grep',
+          task: 'Search the auth log for failed login attempts.',
+          canonical: 'grep "Failed password" /var/log/auth.log',
+          explain:
+            '`grep` searches text for a pattern. Scanning /var/log/auth.log for ' +
+            '"Failed password" reveals brute-force attempts; a success right ' +
+            'after a flood of failures is a red flag.',
+          palette: [
+            'grep "Failed password" /var/log/auth.log',
+            'cat /var/log/auth.log',
+            'ls /var/log',
+            'tail',
+            'grep',
+          ],
+          output:
+            'Failed password for root from 203.0.113.77 (x1,284)\\n' +
+            'Accepted password for root from 203.0.113.77   <-- brute force succeeded',
+        },
+        {
+          id: 'step_ss',
+          task: 'Show active network connections to spot any outbound links.',
+          canonical: 'ss -tunap',
+          explain:
+            '`ss` (or the older `netstat`) shows network sockets. An ' +
+            'established outbound connection to an unknown host often means ' +
+            'data exfiltration or command-and-control.',
+          palette: ['ss -tunap', 'netstat -tunap', 'ping', 'ifconfig', 'who'],
+          output:
+            'ESTAB  10.0.0.9:49722  198.51.100.4:4444   /tmp/.update.sh\\n' +
+            '<-- active connection to a suspicious external host on port 4444',
+        },
+      ],
+    },
+    answer: {
+      // Accepted command patterns per step (hidden; used for grading all modes).
+      // Matching is lenient: normalized whitespace, flexible flag order.
+      accepted: {
+        step_ls: ['ls -la', 'ls -al', 'ls -a -l', 'ls -l -a', 'ls -lah', 'ls - al', 'ls --all -l'],
+        step_who: ['who', 'w'],
+        step_ps: ['ps aux', 'ps -aux', 'ps -ef', 'ps aux --sort', 'top'],
+        step_grep: [
+          'grep "failed password" /var/log/auth.log',
+          "grep 'failed password' /var/log/auth.log",
+          'grep failed /var/log/auth.log',
+          'grep "failed" /var/log/auth.log',
+          'cat /var/log/auth.log | grep "failed password"',
+          'grep -i "failed password" /var/log/auth.log',
+        ],
+        step_ss: [
+          'ss -tunap', 'ss -tulnp', 'ss -tunp', 'ss -tan', 'ss -tulpn', 'ss',
+          'netstat -tunap', 'netstat -tulnp', 'netstat -an', 'netstat -tulpn', 'netstat',
+        ],
+      },
+    },
+    // Reward bands. "Perfect" is reachable at any comfort level (guidance only
+    // changes help, not the ceiling). Reveals in comfortable mode cost a little.
+    grades: {
+      perfect: {
+        effects: [{ key: 'integrity', amount: 9 }, { key: 'morale', amount: 2 }],
+        outcome:
+          'Clean investigation. You listed the hidden dropper, caught the rogue ' +
+          'root login, found the CPU-pegging process, confirmed the brute force ' +
+          'in the auth log, and spotted the command-and-control connection. ' +
+          'That is exactly how an operator triages an intrusion.',
+      },
+      good: {
+        effects: [{ key: 'integrity', amount: 4 }],
+        outcome:
+          'You worked through most of the investigation. Each command answers a ' +
+          'question: what is here (ls), who is on (who), what is running (ps), ' +
+          'what happened (grep the logs), and where it is talking (ss/netstat).',
+      },
+      fail: {
+        effects: [{ key: 'integrity', amount: -16 }, { key: 'morale', amount: -3 }],
+        outcome:
+          'The investigation stalled. These core commands \u2014 ls, who, ps, grep, ' +
+          'ss/netstat \u2014 are an operator\u2019s first toolkit for spotting an intruder. ' +
+          'Worth practicing until they are second nature.',
+      },
+    },
+  },
 };
 
 /**
@@ -480,6 +626,8 @@ const EVENT_MINIGAMES = {
   ransomware_operator: 'contain_ransomware_steps',
   ransomware_ehr_operator: 'contain_ransomware_steps',
   zero_day_operator: 'order_zero_day_steps',
+  // Terminal (adaptive Linux investigation)
+  plc_logic_operator: 'terminal_linux_triage',
 };
 
 function miniGameIdForEvent(eventId) {
@@ -487,6 +635,22 @@ function miniGameIdForEvent(eventId) {
 }
 
 const clampPct = (n) => Math.max(0, Math.min(1, n));
+
+/**
+ * Normalize a typed shell command for lenient matching:
+ * lowercase, collapse whitespace, trim, drop a trailing semicolon.
+ * (Quotes are preserved loosely by also normalizing to straight quotes.)
+ */
+function normalizeCmd(s) {
+  if (typeof s !== 'string') return '';
+  return s
+    .replace(/[\u2018\u2019\u201C\u201D]/g, "'") // smart quotes → straight
+    .replace(/"/g, "'")
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s*;\s*$/, '')
+    .trim();
+}
 
 /**
  * Public, client-safe projection of a mini-game: config only, NO answer key.
@@ -558,6 +722,28 @@ function scoreMiniGame(def, result, skipped) {
     let score = rightPos / order.length;
     if (!firstRight) score = Math.min(score, 0.5); // cap if containment wasn't first
     return bandFromScore(clampPct(score));
+  }
+
+  if (type === 'terminal') {
+    const accepted = def.answer.accepted;
+    const stepIds = def.config.steps.map((s) => s.id);
+    const submitted = (result && result.steps) || {};
+    const reveals = Array.isArray(result && result.reveals) ? result.reveals : [];
+    let solved = 0;
+    for (const id of stepIds) {
+      const typed = normalizeCmd(submitted[id]);
+      if (!typed) continue;
+      const patterns = (accepted[id] || []).map(normalizeCmd);
+      if (patterns.indexOf(typed) >= 0) solved++;
+    }
+    // Base score = fraction of steps solved with a correct command.
+    let score = solved / stepIds.length;
+    // Using "reveal answer" (comfortable mode) costs a small amount per reveal,
+    // so a fully-revealed run can't score perfect — but a self-solved run at
+    // ANY comfort level can. Guided mode shows commands but counts no reveals.
+    const revealPenalty = 0.1 * reveals.filter((id) => stepIds.includes(id)).length;
+    score = clampPct(score - revealPenalty);
+    return bandFromScore(score);
   }
 
   // Unknown type → treat as fail (defensive).

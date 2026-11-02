@@ -344,7 +344,160 @@
       wrap.appendChild(miniGameButtons(ev, () => ({ order: chosen.slice() })));
     }
 
+    else if (mg.type === 'terminal') {
+      wrap.appendChild(terminalGame(ev, cfg));
+    }
+
     return wrap;
+  }
+
+  // ---- Terminal mini-game (adaptive Linux investigation) ----
+  function terminalGame(ev, cfg) {
+    const host = el('div', { class: 'terminal-host' });
+
+    // Phase 1: comfort-level selection.
+    function levelSelect() {
+      host.textContent = '';
+      host.appendChild(el('p', { class: 'prompt-text', text: cfg.scenario }));
+      host.appendChild(el('p', { class: 'mg-sublabel', text: 'How comfortable are you with Linux?' }));
+      host.appendChild(el('div', { class: 'term-levels' }, [
+        levelCard('guided', '🟢 New to Linux', 'I\u2019ll show you each command and explain it. You still type it.'),
+        levelCard('comfortable', '🟡 Comfortable', 'You get a command palette and a "reveal" option if stuck.'),
+        levelCard('expert', '🔴 Expert', 'Just the task and a bare prompt. No hints.'),
+      ]));
+      host.appendChild(el('p', { class: 'meta', text: 'You can reach a perfect score at any level — the level only changes how much help you get.' }));
+    }
+    function levelCard(level, title, desc) {
+      return el('button', { class: 'card term-level', onClick: () => runGame(level) }, [
+        el('h3', { text: title }),
+        el('p', { text: desc }),
+      ]);
+    }
+
+    // Phase 2: the terminal loop.
+    function runGame(level) {
+      const steps = cfg.steps;
+      let idx = 0;
+      const typed = {};        // stepId -> command string (submitted)
+      const reveals = [];      // stepIds where the player revealed the answer
+      const solvedLocal = {};  // stepId -> bool (client-side echo; server re-grades)
+
+      host.textContent = '';
+      const banner = el('div', { class: 'term-banner', text:
+        'LEVEL: ' + ({ guided: 'NEW TO LINUX (guided)', comfortable: 'COMFORTABLE', expert: 'EXPERT' }[level]) });
+      const screen = el('div', { class: 'term-screen' });
+      const taskBox = el('div', { class: 'term-task' });
+      const helpBox = el('div', { class: 'term-help' });
+      const inputRow = el('div', { class: 'term-input-row' });
+      const input = el('input', { class: 'term-input', type: 'text', autocomplete: 'off',
+        spellcheck: 'false', placeholder: 'type a command and press Enter' });
+      const promptSpan = el('span', { class: 'term-prompt', text: cfg.prompt + ' ' });
+
+      function print(line, cls) {
+        screen.appendChild(el('div', { class: 'term-line' + (cls ? ' ' + cls : '') }, [line]));
+        screen.scrollTop = screen.scrollHeight;
+      }
+      function printMulti(text, cls) {
+        String(text).split('\\n').forEach((l) => print(l, cls));
+      }
+
+      function loadStep() {
+        if (idx >= steps.length) return finish();
+        const s = steps[idx];
+        taskBox.textContent = '';
+        taskBox.appendChild(el('span', { class: 'term-step-num', text: 'STEP ' + (idx + 1) + '/' + steps.length + ' — ' }));
+        taskBox.appendChild(document.createTextNode(s.task));
+        helpBox.textContent = '';
+        if (level === 'guided') {
+          helpBox.appendChild(el('div', { class: 'term-guide' }, [
+            el('div', {}, [el('span', { class: 'term-cmd-hint', text: s.canonical })]),
+            el('div', { class: 'term-explain', text: s.explain }),
+          ]));
+        } else if (level === 'comfortable') {
+          const pal = el('div', { class: 'term-palette' },
+            (s.palette || []).map((c) =>
+              el('button', { class: 'term-pal-btn', onClick: () => { input.value = c; input.focus(); } }, [c]),
+            ),
+          );
+          const reveal = el('button', { class: 'term-reveal', onClick: () => {
+            if (reveals.indexOf(s.id) < 0) reveals.push(s.id);
+            input.value = s.canonical;
+            input.focus();
+            print('(revealed: ' + s.canonical + ')', 'term-dim');
+          }, text: 'reveal answer' });
+          helpBox.appendChild(el('div', { class: 'term-help-row' }, [
+            el('span', { class: 'mg-label', text: 'commands: ' }), pal,
+          ]));
+          helpBox.appendChild(reveal);
+        }
+        // expert: no help shown.
+        input.value = '';
+        input.focus();
+      }
+
+      function matchesStep(s, raw) {
+        // Light client-side check just for the live echo/feedback.
+        const norm = (raw || '').replace(/[\u2018\u2019\u201C\u201D]/g, "'").replace(/"/g, "'")
+          .toLowerCase().replace(/\s+/g, ' ').replace(/\s*;\s*$/, '').trim();
+        // We don't have the answer key on the client, so accept the canonical
+        // (and a couple of obvious equivalents) for the echo; the SERVER is the
+        // real grader on submit.
+        const canon = s.canonical.replace(/"/g, "'").toLowerCase().replace(/\s+/g, ' ').trim();
+        return norm === canon || norm.indexOf(canon.split(' ')[0]) === 0 && norm.length >= canon.split(' ')[0].length
+          ? norm === canon
+          : false;
+      }
+
+      function submitLine() {
+        const s = steps[idx];
+        const raw = input.value.trim();
+        if (!raw) return;
+        print(cfg.prompt + ' ' + raw);
+        typed[s.id] = raw;
+        const ok = matchesStep(s, raw);
+        if (ok) {
+          printMulti(s.output, 'term-out');
+          solvedLocal[s.id] = true;
+          print('✓ nice — that\u2019s the right tool for this step.', 'term-ok');
+          idx += 1;
+          setTimeout(loadStep, 150);
+        } else {
+          // Let them try again; expert/comfortable get a nudge to retry or (comfortable) reveal.
+          print('Hmm, that didn\u2019t surface what you need. Try another command'
+            + (level === 'expert' ? '.' : (level === 'comfortable' ? ' (or use the palette / reveal).' : ' — check the suggested command above.')), 'term-dim');
+          // Still record their last attempt in `typed`; they can retry.
+        }
+      }
+
+      function finish() {
+        print('— investigation complete —', 'term-ok');
+        input.disabled = true;
+      }
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); submitLine(); }
+      });
+
+      banner && host.appendChild(banner);
+      host.appendChild(taskBox);
+      host.appendChild(screen);
+      inputRow.appendChild(promptSpan);
+      inputRow.appendChild(input);
+      host.appendChild(inputRow);
+      host.appendChild(helpBox);
+      // Submit/Skip. Submit sends the whole result; the server grades it.
+      host.appendChild(miniGameButtons(ev, () => ({
+        level: level,
+        steps: typed,
+        reveals: reveals.slice(),
+      })));
+
+      print(cfg.scenario, 'term-dim');
+      loadStep();
+    }
+
+    levelSelect();
+    return host;
   }
 
   function miniGameButtons(ev, collect) {
