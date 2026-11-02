@@ -58,11 +58,10 @@
       var x = i * FONT_SIZE;
       var y = columns[i] * FONT_SIZE;
       if (y > 0) {
-        // Head character: brighter green; trail chars are dimmer.
-        ctx.fillStyle = 'rgba(140, 255, 170, 0.55)';
+        // Head character: bright green; trail char behind it is dimmer.
+        ctx.fillStyle = 'rgba(160, 255, 185, 0.85)';
         ctx.fillText(randChar(), x, y);
-        // a dimmer char a row behind, for a little depth
-        ctx.fillStyle = 'rgba(91, 255, 122, 0.18)';
+        ctx.fillStyle = 'rgba(91, 255, 122, 0.35)';
         ctx.fillText(randChar(), x, y - FONT_SIZE);
       }
       columns[i] += speeds[i];

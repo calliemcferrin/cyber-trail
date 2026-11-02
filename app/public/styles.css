@@ -30,10 +30,13 @@
 
 * { box-sizing: border-box; }
 
-html, body {
+html {
+  background: var(--bg); /* base dark fallback */
+}
+body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
+  background: transparent; /* let the rain + gradient show through */
   color: var(--text);
   font-family: var(--font-body);
   line-height: 1.6;
@@ -41,29 +44,32 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Slow falling binary/hex "digital rain" behind everything. */
+/* Slow falling binary/hex "digital rain" — lowest visual layer. */
 #matrix {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   display: block;
   pointer-events: none;
-  opacity: 0.5; /* keep it subtle so UI text stays readable */
 }
 
-/* Glowing perspective grid + vignette backdrop */
+/* Glowing perspective grid + vignette backdrop, layered OVER the rain. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: 1;
+  pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 0%, rgba(91, 255, 122, 0.14), transparent 60%),
-    radial-gradient(ellipse at 50% 120%, rgba(77, 181, 255, 0.12), transparent 55%),
+    radial-gradient(ellipse at 50% 0%, rgba(91, 255, 122, 0.12), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgba(77, 181, 255, 0.10), transparent 55%),
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
 }
+
+/* App content sits above the rain + backdrop. */
+#app { position: relative; z-index: 2; }
 
 /* CRT glow + scanline overlays — kept subtle so they never wash out text */
 .crt {
