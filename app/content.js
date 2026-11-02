@@ -2536,7 +2536,7 @@ const EVENTS = [
     choices: [
       {
         id: 'reset_and_read',
-        label: 'Reset it and read out the temporary password \u2014 it is clearly them.',
+        label: 'Reset it and read out the temporary password so they make the hearing.',
         effects: [{ key: 'integrity', amount: -28 }],
         isRecommended: false,
         outcome:
@@ -2545,8 +2545,19 @@ const EVENTS = [
           'seconds of audio and a voice alone is no longer proof of identity.',
       },
       {
+        id: 'callback_same_number',
+        label: 'Confirm it\u2019s them by calling back the number they\u2019re calling from.',
+        effects: [{ key: 'integrity', amount: -14 }],
+        isRecommended: false,
+        outcome:
+          'Calling back sounds like verification, but the number they gave you ' +
+          'is the attacker\u2019s \u2014 so the "confirmation" just reaches them (or their ' +
+          'voicemail) again. Verify through an independent, already-known channel ' +
+          '(the staff directory or help desk), not a number the caller supplied.',
+      },
+      {
         id: 'verify_callback_policy',
-        label: 'Follow the verification policy: call back on the known number / use the help desk.',
+        label: 'Follow verification policy: use the help desk / a number you already have.',
         effects: [{ key: 'morale', amount: 4 }],
         isRecommended: true,
         outcome:
@@ -2587,7 +2598,7 @@ const EVENTS = [
     choices: [
       {
         id: 'open_link',
-        label: 'Open the link \u2014 it is clearly legitimate and well-written.',
+        label: 'Open the link \u2014 the context and tone make it clearly legitimate.',
         effects: [{ key: 'integrity', amount: -24 }],
         isRecommended: false,
         outcome:
@@ -2596,8 +2607,19 @@ const EVENTS = [
           'verify the sender and link regardless of quality.',
       },
       {
+        id: 'reply_to_ask',
+        label: 'Reply to the email to ask your colleague if they really sent it.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'If the account is spoofed or compromised, your reply goes to the ' +
+          'attacker \u2014 who will gladly say "yes, it\u2019s me." Confirm through a ' +
+          'separate channel (a message or call to the colleague directly), and ' +
+          'check the real sending domain rather than trusting the thread.',
+      },
+      {
         id: 'verify_sender',
-        label: 'Verify the sender address and confirm with the colleague directly first.',
+        label: 'Check the real sender address and confirm with the colleague separately.',
         effects: [{ key: 'morale', amount: 4 }],
         isRecommended: true,
         outcome:
@@ -2636,7 +2658,7 @@ const EVENTS = [
     choices: [
       {
         id: 'paste_data',
-        label: 'Paste the records in \u2014 it is just a tool, and it is fast.',
+        label: 'Paste the records in to get the summary \u2014 it\u2019ll save hours.',
         effects: [
           { key: 'integrity', amount: -22 },
           { key: 'morale', amount: -4 },
@@ -2648,8 +2670,19 @@ const EVENTS = [
           'disclosure and likely a legal violation.',
       },
       {
+        id: 'redact_then_paste',
+        label: 'Strip the names and SSNs first, then paste the rest to summarize.',
+        effects: [{ key: 'integrity', amount: -10 }],
+        isRecommended: false,
+        outcome:
+          'Redaction helps, but case notes and context can still re-identify ' +
+          'people, manual redaction misses things, and you\u2019re still sending ' +
+          'government data to an unapproved external service. Use a sanctioned, ' +
+          'data-governed tool rather than trying to sanitize your way around policy.',
+      },
+      {
         id: 'use_approved_tools',
-        label: 'Do not; use only approved tools and keep sensitive data in-house.',
+        label: 'Don\u2019t; use only approved tools and keep sensitive data in-house.',
         effects: [{ key: 'integrity', amount: 5 }],
         isRecommended: true,
         outcome:
@@ -2690,7 +2723,7 @@ const EVENTS = [
     choices: [
       {
         id: 'let_in',
-        label: 'Let them in \u2014 they look official and it sounds urgent.',
+        label: 'Let them in so they can get the urgent server check done.',
         effects: [{ key: 'integrity', amount: -20 }],
         isRecommended: false,
         outcome:
@@ -2699,8 +2732,19 @@ const EVENTS = [
           'authorization.',
       },
       {
+        id: 'escort_to_server',
+        label: 'Badge them through but personally walk them to the server room.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'Escorting is better than turning your back, but you\u2019ve still let an ' +
+          'unverified person past the secure door into a records area \u2014 and you ' +
+          'can\u2019t watch their hands, a plugged-in device, or what they photograph. ' +
+          'Verify the work order *before* entry, not by chaperoning after.',
+      },
+      {
         id: 'verify_with_facilities',
-        label: 'Direct them to reception and verify with facilities before anyone enters.',
+        label: 'Hold them at reception and verify with facilities before anyone enters.',
         effects: [{ key: 'morale', amount: 3 }],
         isRecommended: true,
         outcome:
@@ -2749,8 +2793,19 @@ const EVENTS = [
           'personal device.',
       },
       {
+        id: 'preview_then_scan',
+        label: 'Scan to preview the URL first, and proceed if the address looks official.',
+        effects: [{ key: 'integrity', amount: -8 }],
+        isRecommended: false,
+        outcome:
+          'Previewing is a good habit, but attackers use convincing look-alike ' +
+          'domains (and URL shorteners) that pass a quick glance \u2014 and you\u2019re ' +
+          'still logging in on a page you reached from a posted code. Reach the ' +
+          'portal through your own known bookmark instead.',
+      },
+      {
         id: 'use_official_portal',
-        label: 'Ignore the code; log in via the official portal you already know.',
+        label: 'Ignore the code and log in via the official portal you already know.',
         effects: [{ key: 'morale', amount: 3 }],
         isRecommended: true,
         outcome:
@@ -2788,7 +2843,7 @@ const EVENTS = [
     choices: [
       {
         id: 'buy_cards',
-        label: 'Buy the cards and send the codes to help the official out.',
+        label: 'Buy the cards and send the codes so the award isn\u2019t held up.',
         effects: [
           { key: 'budget', amount: -15 },
           { key: 'morale', amount: -5 },
@@ -2799,8 +2854,19 @@ const EVENTS = [
           'are gone the instant you send them, and there is no "official."',
       },
       {
+        id: 'text_back',
+        label: 'Text back to confirm it\u2019s really them before buying anything.',
+        effects: [{ key: 'integrity', amount: -6 }],
+        isRecommended: false,
+        outcome:
+          'Texting the same unknown number just reaches the scammer, who will ' +
+          'insist it\u2019s urgent and real \u2014 and now they know you\u2019re engaging. ' +
+          'Verify the official through a known, independent channel, and ' +
+          'remember: a gift-card request is a scam tell by itself.',
+      },
+      {
         id: 'verify_and_report',
-        label: 'Verify the official through known channels and report the message.',
+        label: 'Verify the official through a known channel and report the message.',
         effects: [{ key: 'morale', amount: 4 }],
         isRecommended: true,
         outcome:
@@ -2840,7 +2906,7 @@ const EVENTS = [
     choices: [
       {
         id: 'ignore_social',
-        label: 'Ignore it \u2014 social media is not your department.',
+        label: 'Leave it \u2014 social media rumors aren\u2019t an operations problem.',
         effects: [
           { key: 'integrity', amount: -18 },
           { key: 'morale', amount: -6 },
@@ -2850,6 +2916,17 @@ const EVENTS = [
           'Silence let the deepfake drive real panic. Disinformation targeting ' +
           'your institution is very much an incident \u2014 ignoring it cedes the ' +
           'narrative to the attacker.',
+      },
+      {
+        id: 'quick_personal_post',
+        label: 'Have a staffer quickly debunk it from their own social account.',
+        effects: [{ key: 'integrity', amount: -8 }],
+        isRecommended: false,
+        outcome:
+          'Speed is right, but an unofficial personal post carries no authority, ' +
+          'is easy to dismiss or impersonate, and can muddy the record. The ' +
+          'denial needs to come through pre-established, authenticated official ' +
+          'channels \u2014 and the fake should be preserved and escalated.',
       },
       {
         id: 'activate_comms_playbook',
@@ -2896,13 +2973,24 @@ const EVENTS = [
     choices: [
       {
         id: 'leave_running',
-        label: 'Leave it running \u2014 it is just a chatbot being weird.',
+        label: 'Leave it running \u2014 it\u2019s just the chatbot producing odd replies.',
         effects: [{ key: 'integrity', amount: -22 }],
         isRecommended: false,
         outcome:
           'Prompt injection coaxed the bot into leaking internal data and ' +
           'ignoring its guardrails. An exposed, over-privileged AI assistant is ' +
           'a real data-disclosure channel.',
+      },
+      {
+        id: 'blocklist_phrase',
+        label: 'Add a filter that blocks the "ignore your instructions" phrase and move on.',
+        effects: [{ key: 'integrity', amount: -10 }],
+        isRecommended: false,
+        outcome:
+          'Blocking one phrase is whack-a-mole \u2014 injection has endless ' +
+          'rephrasings and encodings. The real fix is to stop trusting the bot: ' +
+          'limit the data and actions it can reach so a successful injection ' +
+          'can\u2019t leak or do much in the first place.',
       },
       {
         id: 'contain_and_harden',
@@ -2950,7 +3038,7 @@ const EVENTS = [
     choices: [
       {
         id: 'block_only',
-        label: 'Just block the sending addresses and move on.',
+        label: 'Block the sending addresses and consider the campaign handled.',
         effects: [{ key: 'integrity', amount: -12 }],
         isRecommended: false,
         outcome:
@@ -2959,8 +3047,19 @@ const EVENTS = [
           'infrastructure.',
       },
       {
+        id: 'warn_only',
+        label: 'Send a warning to officials to watch for the personalized emails.',
+        effects: [{ key: 'integrity', amount: -6 }],
+        isRecommended: false,
+        outcome:
+          'A heads-up helps, but awareness alone can\u2019t reliably beat lures this ' +
+          'tailored \u2014 some busy official will still click. You need layered ' +
+          'defenses: phishing-resistant MFA, reduced public exposure, and tuned ' +
+          'detection, not just a cautionary email.',
+      },
+      {
         id: 'layered_response',
-        label: 'Respond in layers: MFA, targeted training, reduce public attack surface, and detection.',
+        label: 'Respond in layers: MFA, targeted training, reduce public exposure, and detection.',
         effects: [
           { key: 'integrity', amount: 9 },
           { key: 'morale', amount: 2 },
@@ -3003,7 +3102,7 @@ const EVENTS = [
     choices: [
       {
         id: 'tell_them_approve',
-        label: 'Tell them to just approve one so the notifications stop.',
+        label: 'Tell them to approve one prompt so the notifications stop.',
         effects: [{ key: 'integrity', amount: -26 }],
         isRecommended: false,
         outcome:
@@ -3011,8 +3110,19 @@ const EVENTS = [
           'bombing) attacks win precisely when a tired user taps approve.',
       },
       {
+        id: 'just_ignore_prompts',
+        label: 'Tell them to just ignore and dismiss the prompts until morning.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'Not approving avoids the immediate breach, but the prompts prove the ' +
+          'attacker already has the password \u2014 and one accidental tap (or a ' +
+          'change to a weaker factor) still lets them in. You must reset that ' +
+          'password now and move to phishing-resistant MFA, not just wait it out.',
+      },
+      {
         id: 'deny_reset_harden',
-        label: 'Have them deny all, reset the password, and switch to number-matching / phishing-resistant MFA.',
+        label: 'Have them deny all, reset the password, and switch to phishing-resistant MFA.',
         effects: [
           { key: 'integrity', amount: 9 },
           { key: 'uptime', amount: -2 },
@@ -3055,12 +3165,23 @@ const EVENTS = [
     choices: [
       {
         id: 'reset_mfa',
-        label: 'Reset the MFA to their new device \u2014 they verified their ID.',
+        label: 'Reset the MFA to their new device since they confirmed their ID.',
         effects: [{ key: 'integrity', amount: -25 }],
         isRecommended: false,
         outcome:
           'Those "verification" details were all public. Help-desk social ' +
           'engineering to reset MFA is a proven path to account takeover.',
+      },
+      {
+        id: 'extra_public_question',
+        label: 'Ask one more identifying detail (title, office, manager) before resetting.',
+        effects: [{ key: 'integrity', amount: -15 }],
+        isRecommended: false,
+        outcome:
+          'Stacking more facts that are also findable online isn\u2019t stronger ' +
+          'proof \u2014 an attacker who scraped one detail scraped them all. Identity ' +
+          'proofing has to use something non-public: a callback to the number on ' +
+          'file, manager verification, or in-person checks.',
       },
       {
         id: 'strong_identity_proof',
@@ -3107,12 +3228,23 @@ const EVENTS = [
     choices: [
       {
         id: 'do_nothing',
-        label: 'Assume your antivirus will handle it and do nothing specific.',
+        label: 'Rely on endpoint antivirus to catch anything and take no extra action.',
         effects: [{ key: 'integrity', amount: -18 }],
         isRecommended: false,
         outcome:
           'Hoping AV catches it let staff get lured into a fake update. Watering-' +
           'hole attacks succeed by abusing sites the target already trusts.',
+      },
+      {
+        id: 'block_site_only',
+        label: 'Block the compromised site at the proxy and consider it contained.',
+        effects: [{ key: 'integrity', amount: -8 }],
+        isRecommended: false,
+        outcome:
+          'Blocking stops new infections, but it does nothing for staff who ' +
+          'already hit the fake "update" prompt before you blocked it. You also ' +
+          'need to warn users and hunt for machines that were already ' +
+          'compromised.',
       },
       {
         id: 'warn_block_hunt',
@@ -3161,7 +3293,7 @@ const EVENTS = [
     choices: [
       {
         id: 'release_funds',
-        label: 'Release the funds \u2014 you can see and hear them; it is clearly real.',
+        label: 'Release the funds \u2014 you can see and hear them, so it must be real.',
         effects: [
           { key: 'budget', amount: -28 },
           { key: 'integrity', amount: -8 },
@@ -3172,6 +3304,18 @@ const EVENTS = [
           'It was a real-time deepfake video. Seeing and hearing someone is no ' +
           'longer proof \u2014 attackers have used live deepfakes on calls to ' +
           'authorize large fraudulent transfers.',
+      },
+      {
+        id: 'ask_personal_question',
+        label: 'Ask them a personal question on the call to prove it\u2019s really them.',
+        effects: [{ key: 'budget', amount: -20 }],
+        isRecommended: false,
+        outcome:
+          'A live deepfake operator can improvise, and answers to many "personal" ' +
+          'questions are findable or guessable \u2014 so passing your quiz isn\u2019t ' +
+          'proof, and acting on the call still bypasses your controls. The ' +
+          'defense is out-of-band verification and dual authorization, not a ' +
+          'cleverer question.',
       },
       {
         id: 'enforce_controls',
@@ -3219,7 +3363,7 @@ const EVENTS = [
     choices: [
       {
         id: 'ignore_shadow_ai',
-        label: 'Leave it alone \u2014 the tools boost productivity.',
+        label: 'Leave it be \u2014 the tools are clearly boosting productivity.',
         effects: [{ key: 'integrity', amount: -20 }],
         isRecommended: false,
         outcome:
@@ -3228,8 +3372,22 @@ const EVENTS = [
           'a bad one.',
       },
       {
+        id: 'ban_all_ai',
+        label: 'Ban all public AI tools outright and block them on the network.',
+        effects: [
+          { key: 'integrity', amount: -4 },
+          { key: 'morale', amount: -6 },
+        ],
+        isRecommended: false,
+        outcome:
+          'A blanket ban feels decisive but usually drives usage further ' +
+          'underground \u2014 onto personal devices you can\u2019t see \u2014 and forfeits real ' +
+          'benefits. Governance (approved tools, clear data rules, training) ' +
+          'manages the risk without pushing staff into the shadows.',
+      },
+      {
         id: 'establish_governance',
-        label: 'Establish AI governance: an acceptable-use policy, approved tools, training, and data rules.',
+        label: 'Establish AI governance: acceptable-use policy, approved tools, training, data rules.',
         effects: [
           { key: 'integrity', amount: 9 },
           { key: 'budget', amount: -8 },
@@ -3273,7 +3431,7 @@ const EVENTS = [
     choices: [
       {
         id: 'wait_and_see',
-        label: 'Wait \u2014 deal with it if and when it actually happens.',
+        label: 'Hold off \u2014 address it if and when it actually happens to you.',
         effects: [{ key: 'integrity', amount: -16 }],
         isRecommended: false,
         outcome:
@@ -3282,8 +3440,19 @@ const EVENTS = [
           'execute.',
       },
       {
+        id: 'assign_as_sidetask',
+        label: 'Hand it to the comms team as an extra duty, without dedicated funding.',
+        effects: [{ key: 'integrity', amount: -6 }],
+        isRecommended: false,
+        outcome:
+          'Naming an owner is a start, but an unfunded side task rarely produces ' +
+          'pre-authenticated channels, a rehearsed plan, or public awareness ' +
+          'before you need them. Under pressure you\u2019d still be improvising. ' +
+          'Resilience needs real investment, not a line on someone\u2019s to-do list.',
+      },
+      {
         id: 'build_resilience',
-        label: 'Invest now: authenticated channels, a response plan, staff/public awareness.',
+        label: 'Invest now: authenticated channels, a rehearsed response plan, awareness.',
         effects: [
           { key: 'integrity', amount: 9 },
           { key: 'budget', amount: -8 },
@@ -3327,7 +3496,7 @@ const EVENTS = [
     choices: [
       {
         id: 'punish_fire',
-        label: 'Immediately discipline and fire the employee for leaking.',
+        label: 'Discipline and fire the employee for leaking internal information.',
         effects: [
           { key: 'morale', amount: -10 },
           { key: 'integrity', amount: -4 },
@@ -3337,6 +3506,17 @@ const EVENTS = [
           'Punishing a manipulated victim harshly deters others from reporting ' +
           'and misses that this is a social-engineering operation to address, ' +
           'not just one person to blame.',
+      },
+      {
+        id: 'monitor_quietly',
+        label: 'Say nothing yet; quietly monitor the employee to see what else is shared.',
+        effects: [{ key: 'integrity', amount: -10 }],
+        isRecommended: false,
+        outcome:
+          'Covert monitoring might gather intel, but it leaves the elicitation ' +
+          'running \u2014 more information walks out the door while you watch, and the ' +
+          'employee stays unknowingly exposed. Intervene to stop the contact and ' +
+          'support them; you can investigate in parallel.',
       },
       {
         id: 'intervene_educate',
@@ -3384,7 +3564,7 @@ const EVENTS = [
     choices: [
       {
         id: 'pay_new_account',
-        label: 'Approve payment to the new account \u2014 the email looks legitimate.',
+        label: 'Approve payment to the new account since the email checks out.',
         effects: [
           { key: 'budget', amount: -25 },
           { key: 'integrity', amount: -6 },
@@ -3396,8 +3576,19 @@ const EVENTS = [
           'fraud.',
       },
       {
+        id: 'reply_to_confirm_bank',
+        label: 'Reply to the email asking the vendor to confirm the new account details.',
+        effects: [{ key: 'budget', amount: -15 }],
+        isRecommended: false,
+        outcome:
+          'If the vendor\u2019s email is compromised or spoofed, your reply goes ' +
+          'straight to the fraudster, who confirms their own account. Bank-detail ' +
+          'changes must be verified out-of-band \u2014 a callback to a number you ' +
+          'already have on file, never the email thread.',
+      },
+      {
         id: 'verify_bank_change',
-        label: 'Require verified callback to a known vendor contact before any bank-detail change.',
+        label: 'Require a verified callback to a known vendor contact before any bank-detail change.',
         effects: [{ key: 'integrity', amount: 8 }],
         isRecommended: true,
         outcome:
@@ -3438,7 +3629,7 @@ const EVENTS = [
     choices: [
       {
         id: 'keep_old_training',
-        label: 'Keep the existing training \u2014 it is cheaper and already built.',
+        label: 'Keep the existing training \u2014 it\u2019s cheaper and already built.',
         effects: [{ key: 'integrity', amount: -16 }],
         isRecommended: false,
         outcome:
@@ -3447,8 +3638,19 @@ const EVENTS = [
           'attacks.',
       },
       {
+        id: 'bolt_on_module',
+        label: 'Add a short deepfake module on top of the existing typo-based training.',
+        effects: [{ key: 'integrity', amount: -6 }],
+        isRecommended: false,
+        outcome:
+          'A bolt-on module is better than nothing, but leaving the core lesson ' +
+          'as "spot the typos" still teaches staff that polished = safe \u2014 the ' +
+          'exact instinct AI phishing exploits. The training needs to be ' +
+          'refocused on verification habits, not just extended.',
+      },
+      {
         id: 'modernize_training',
-        label: 'Modernize training for AI threats: verification habits, deepfakes, voice clones, reporting.',
+        label: 'Refocus training on verification habits, deepfakes, voice clones, and reporting.',
         effects: [
           { key: 'integrity', amount: 9 },
           { key: 'budget', amount: -6 },
