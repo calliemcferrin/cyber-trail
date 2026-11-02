@@ -289,8 +289,10 @@ function choose(eventId,choiceId){
     ]);
     print('cyber-trail // mission loader','term-ok');
     print('usage: import <facility> --<role>','term-dim');
+    print('note: <> mark placeholders — do not type the angle brackets.','term-dim');
     print('target facility : '+fac,'term-dim');
     print('target role     : '+role,'term-dim');
+    print('e.g.  import '+fac+' --'+role,'term-dim');
     print('—','term-dim');
     input.focus();
   }
@@ -317,7 +319,7 @@ function choose(eventId,choiceId){
   function reviewBlock(o){
     if(!o||!o.review||!o.review.length) return null;
     var total=o.review.length, wrong=o.wrongCount||0;
-    var summary=wrong===0?('Review your answers — all '+total+' correct ✓'):('Review your answers — '+wrong+' of '+total+' wrong');
+    var summary=wrong===0?('★ Review your answers — all '+total+' correct'):('⚠ Review your answers — '+wrong+' of '+total+' wrong (tap to see where)');
     var ul=el('ul',{class:'review-list'});
     o.review.forEach(function(r){
       ul.appendChild(el('li',{class:'review-item '+(r.ok?'ok':'no')},[
@@ -326,7 +328,9 @@ function choose(eventId,choiceId){
         el('div',{class:'review-detail',text:r.detail})
       ]));
     });
-    return el('details',{class:'review'},[ el('summary',{text:'ⓘ '+summary}), ul ]);
+    var details=el('details',{class:'review '+(wrong===0?'all-ok':'has-wrong')},[ el('summary',{text:summary}), ul ]);
+    if(wrong>0) details.open=true;
+    return details;
   }
 
   function journeyScreen(){

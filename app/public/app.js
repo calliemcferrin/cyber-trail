@@ -189,8 +189,10 @@
     function boot() {
       print('cyber-trail // mission loader', 'term-ok');
       print('usage: import <facility> --<role>', 'term-dim');
+      print('note: <> mark placeholders — do not type the angle brackets.', 'term-dim');
       print('target facility : ' + fac, 'term-dim');
       print('target role     : ' + role, 'term-dim');
+      print('e.g.  import ' + fac + ' --' + role, 'term-dim');
       print('—', 'term-dim');
     }
 
@@ -294,10 +296,10 @@
     const total = o.review.length;
     const wrong = o.wrongCount || 0;
     const summary = wrong === 0
-      ? 'Review your answers — all ' + total + ' correct ✓'
-      : 'Review your answers — ' + wrong + ' of ' + total + ' wrong';
-    return el('details', { class: 'review' }, [
-      el('summary', { text: 'ⓘ ' + summary }),
+      ? '★ Review your answers — all ' + total + ' correct'
+      : '⚠ Review your answers — ' + wrong + ' of ' + total + ' wrong (tap to see where)';
+    const details = el('details', { class: 'review ' + (wrong === 0 ? 'all-ok' : 'has-wrong') }, [
+      el('summary', { text: summary }),
       el('ul', { class: 'review-list' },
         o.review.map((r) =>
           el('li', { class: 'review-item ' + (r.ok ? 'ok' : 'no') }, [
@@ -308,6 +310,9 @@
         ),
       ),
     ]);
+    // Auto-open the breakdown when there are wrong answers, so it stands out.
+    if (wrong > 0) details.open = true;
+    return details;
   }
 
   // ------------------------- journey / event -------------------------

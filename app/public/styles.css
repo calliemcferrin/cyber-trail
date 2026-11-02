@@ -434,31 +434,44 @@ body::before {
 }
 .term-import-screen { height: 160px; }
 
-/* ---------------------------- mini-game review ---------------------------- */
+/* ---------------------------- mini-game review (stands out) ---------------------------- */
 .review {
-  margin-top: 0.9rem;
-  border: 1px solid rgba(77,181,255,0.35);
-  background: rgba(10, 16, 24, 0.6);
-  border-radius: 3px;
+  margin-top: 1.1rem;
+  border: 2px solid var(--amber);
+  border-radius: 5px;
+  background: rgba(255, 194, 77, 0.08);
+  box-shadow: 0 0 14px rgba(255, 194, 77, 0.2);
+}
+/* All-correct variant: calm green instead of attention-amber. */
+.review.all-ok {
+  border-color: var(--green);
+  background: rgba(91, 255, 122, 0.08);
+  box-shadow: 0 0 14px rgba(91, 255, 122, 0.18);
 }
 .review > summary {
   cursor: pointer; list-style: none;
-  padding: 0.55rem 0.9rem;
-  font-family: var(--font-mono); font-size: 0.85rem;
-  color: var(--blue); user-select: none;
+  padding: 0.75rem 1rem;
+  font-family: var(--font-mono); font-weight: 700;
+  font-size: 1rem; letter-spacing: 0.02em;
+  color: var(--amber); user-select: none;
 }
+.review.all-ok > summary { color: var(--green); }
 .review > summary::-webkit-details-marker { display: none; }
-.review > summary::after { content: ' ▸'; color: var(--blue); }
+.review > summary::after { content: ' ▸'; }
 .review[open] > summary::after { content: ' ▾'; }
-.review > summary:hover { color: var(--green); }
-.review-list { margin: 0; padding: 0.2rem 0.9rem 0.8rem; list-style: none; border-top: 1px solid rgba(77,181,255,0.2); }
-.review-item { padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.review > summary:hover { filter: brightness(1.15); }
+.review-list { margin: 0; padding: 0.3rem 1rem 1rem; list-style: none; border-top: 1px solid rgba(255,255,255,0.12); }
+.review-item { padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .review-item:last-child { border-bottom: none; }
+/* Wrong items get a red accent bar so misses jump out. */
+.review-item.no { border-left: 3px solid var(--red); padding-left: 0.6rem; background: rgba(255,107,107,0.06); }
+.review-item.ok { border-left: 3px solid var(--green); padding-left: 0.6rem; }
 .review-mark { font-family: var(--font-mono); font-weight: 700; }
 .review-item.ok .review-mark { color: var(--green); }
 .review-item.no .review-mark { color: var(--red); }
-.review-label { color: var(--text); }
-.review-detail { color: var(--dim); font-size: 0.9rem; margin-top: 0.2rem; padding-left: 1.2rem; line-height: 1.5; }
+.review-label { color: var(--text); font-weight: 600; }
+.review-item.no .review-detail { color: #ffd0d0; }
+.review-detail { color: var(--dim); font-size: 0.92rem; margin-top: 0.25rem; padding-left: 1.3rem; line-height: 1.5; }
 
 /* ---------------------------- end screens ---------------------------- */
 .endbanner { font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 900; margin: 0.5rem 0; }
