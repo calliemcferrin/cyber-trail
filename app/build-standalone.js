@@ -16,7 +16,42 @@ const css = fs.readFileSync(path.join(__dirname, 'public', 'styles.css'), 'utf8'
 const matrixJs = fs.readFileSync(path.join(__dirname, 'public', 'matrix.js'), 'utf8');
 const { FACILITIES, ROLES, EVENTS } = require('./content.js');
 const { GLOSSARY } = require('./glossary.js');
-const { MINIGAMES, EVENT_MINIGAMES } = require('./minigames.js');
+const {
+  MINIGAMES,
+  EVENT_MINIGAMES,
+  scoreMiniGame: _scoreMiniGame,
+} = require('./minigames.js');
+
+// Inline the REAL grader source (so the standalone's per-item review matches
+// the server exactly). These helpers are pure and browser-safe.
+const graderSource = [
+  normalizeCmdSource(),
+  'function clampPct(n){ return Math.max(0, Math.min(1, n)); }',
+  bandFromScoreSource(),
+  withReviewSource(),
+  _scoreMiniGame.toString(),
+].join('\n');
+
+function normalizeCmdSource() {
+  return (
+    'function normalizeCmd(s){ if(typeof s!=="string") return ""; ' +
+    "return s.replace(/[\\u2018\\u2019\\u201C\\u201D]/g, \"'\").replace(/\"/g, \"'\")" +
+    ".toLowerCase().replace(/\\s+/g,' ').replace(/\\s*;\\s*$/,'').trim(); }"
+  );
+}
+function bandFromScoreSource() {
+  return (
+    'function bandFromScore(score){ if(score>=0.999) return {band:"perfect",score:score};' +
+    ' if(score>=0.6) return {band:"good",score:score}; return {band:"fail",score:score}; }'
+  );
+}
+function withReviewSource() {
+  return (
+    'function withReview(score, review, skipped){ var wrongCount=review.filter(function(r){return !r.ok;}).length;' +
+    ' var band = skipped ? "fail" : bandFromScore(score).band;' +
+    ' return { band:band, score:score, wrongCount:wrongCount, review:review, skipped:!!skipped }; }'
+  );
+}
 
 const facilities = JSON.stringify(Object.values(FACILITIES));
 const roles = JSON.stringify(Object.values(ROLES));
@@ -92,61 +127,22 @@ function glossaryForText(blocks){
   return glossaryFor({ prompt: blocks.join(' \\u241F '), choices: [] });
 }
 
-// ====== Mini-games (ported from minigames.js) ======
+// ====== Mini-games (data + the REAL grader, inlined from minigames.js) ======
 var MINIGAMES = ${minigames};
 var EVENT_MINIGAMES = ${eventMinigames};
 function miniGameIdForEvent(id){ return EVENT_MINIGAMES[id] || null; }
 function publicMiniGame(id){ var d=MINIGAMES[id]; return { id:id, type:d.type, config:d.config, attackType:d.attackType }; }
-function clampPct(n){ return Math.max(0, Math.min(1, n)); }
-function bandFromScore(s){ if(s>=0.999) return 'perfect'; if(s>=0.6) return 'good'; return 'fail'; }
-function scoreMiniGame(def, result, skipped){
-  if(skipped) return 'fail';
-  var t=def.type;
-  if(t==='spot_the_phish'){
-    var correct=def.answer.suspicious, all=def.config.tokens.map(function(x){return x.id;});
-    var benign=all.filter(function(id){return correct.indexOf(id)<0;});
-    var picked=(result&&result.selected)||[];
-    var hits=correct.filter(function(id){return picked.indexOf(id)>=0;}).length;
-    var fa=picked.filter(function(id){return benign.indexOf(id)>=0;}).length;
-    return bandFromScore(clampPct(hits/correct.length - 0.25*fa));
-  }
-  if(t==='sort_messages'){
-    var map=def.answer.map, ids=Object.keys(map), assign=(result&&result.assignments)||{};
-    var right=ids.filter(function(id){return assign[id]===map[id];}).length;
-    return bandFromScore(clampPct(right/ids.length));
-  }
-  if(t==='pick_practices'){
-    var good=def.answer.good, bad=def.answer.bad, total=good.length+bad.length;
-    var picked=(result&&result.selected)||[];
-    var c=0; good.forEach(function(id){if(picked.indexOf(id)>=0)c++;}); bad.forEach(function(id){if(picked.indexOf(id)<0)c++;});
-    return bandFromScore(clampPct(c/total));
-  }
-  if(t==='order_steps'){
-    var order=def.answer.order, sub=(result&&result.order)||[];
-    var rp=0; for(var i=0;i<order.length;i++){ if(sub[i]===order[i]) rp++; }
-    var score=rp/order.length; if(sub[0]!==order[0]) score=Math.min(score,0.5);
-    return bandFromScore(clampPct(score));
-  }
-  if(t==='terminal'){
-    function normCmd(s){ if(typeof s!=='string') return ''; return s.replace(/[\\u2018\\u2019\\u201C\\u201D]/g,"'").replace(/"/g,"'").toLowerCase().replace(/\\s+/g,' ').replace(/\\s*;\\s*\$/,'').trim(); }
-    var acc=def.answer.accepted, sids=def.config.steps.map(function(s){return s.id;});
-    var sub=(result&&result.steps)||{}, reveals=(result&&result.reveals)||[];
-    var solved=0;
-    sids.forEach(function(id){ var typed=normCmd(sub[id]); if(!typed) return; var pats=(acc[id]||[]).map(normCmd); if(pats.indexOf(typed)>=0) solved++; });
-    var score=solved/sids.length - 0.1*reveals.filter(function(id){return sids.indexOf(id)>=0;}).length;
-    return bandFromScore(clampPct(score));
-  }
-  return 'fail';
-}
+${graderSource}
 function submitMiniGameLocal(eventId, minigameId, result, skipped){
   var def=MINIGAMES[minigameId];
   var pool=eventsFor(run.facilityId,run.roleId);
   var ev=findEvent(run.currentEventId,pool);
-  var band=scoreMiniGame(def, result, skipped);
+  var scored=scoreMiniGame(def, result, skipped);
+  var band=scored.band;
   var graded=def.grades[band];
   for(var i=0;i<graded.effects.length;i++){ var eff=graded.effects[i]; run.resources[eff.key]=clamp(run.resources[eff.key]+eff.amount); }
   var gloss=glossaryForText([graded.outcome, ev.learning.summary, ev.learning.realWorldExample, ev.learning.preventiveMeasures.join(' ')]);
-  run.lastOutcome={ choiceId:'minigame:'+minigameId, outcome:graded.outcome, isRecommended:(band==='perfect'||band==='good'), band:band, skipped:!!skipped, learning:ev.learning, eventTitle:ev.title, glossary:gloss };
+  run.lastOutcome={ choiceId:'minigame:'+minigameId, outcome:graded.outcome, isRecommended:(band==='perfect'||band==='good'), band:band, skipped:!!skipped, wrongCount:scored.wrongCount, review:scored.review, learning:ev.learning, eventTitle:ev.title, glossary:gloss };
   run.stage+=1;
   if(run.resources.integrity<=0||run.resources.uptime<=0){ run.status='lost'; run.currentEventId=null; }
   else if(run.stage>=run.totalStages){ run.status='won'; run.currentEventId=null; }
@@ -254,7 +250,50 @@ function choose(eventId,choiceId){
       el('div',{class:'btn-row'},[ el('button',{class:'btn secondary',onClick:facilityScreen,text:'◀ Back'}) ])
     ]);
   }
-  function beginGame(){ state.game=startGame(state.facilityId,state.roleId); journeyScreen(); }
+  function isMobile(){
+    var coarse=window.matchMedia&&window.matchMedia('(pointer: coarse)').matches;
+    var touch=('ontouchstart' in window)||(navigator.maxTouchPoints||0)>0;
+    var narrow=window.innerWidth<=820;
+    var uaMobile=navigator.userAgentData?!!navigator.userAgentData.mobile:/Mobi|Android|iPhone|iPod/i.test(navigator.userAgent||'');
+    return (uaMobile||((coarse||touch)&&narrow));
+  }
+  function startJourney(){ state.game=startGame(state.facilityId,state.roleId); journeyScreen(); }
+  function beginGame(){ if(isMobile()) startJourney(); else importScreen(); }
+  function importScreen(){
+    var fac=state.facilityId, role=state.roleId;
+    var expected=('import '+fac+' --'+role).toLowerCase();
+    var screen=el('div',{class:'term-screen term-import-screen'});
+    var input=el('input',{class:'term-input',type:'text',autocomplete:'off',spellcheck:'false',placeholder:'type the import command and press Enter'});
+    var promptSpan=el('span',{class:'term-prompt',text:'operator@cyber-trail:~\$ '});
+    function print(line,cls){ screen.appendChild(el('div',{class:'term-line'+(cls?' '+cls:'')},[line])); screen.scrollTop=screen.scrollHeight; }
+    function norm(s){ return (s||'').toLowerCase().replace(/\\s+/g,' ').trim(); }
+    function run(){
+      var raw=input.value.trim(); if(!raw) return;
+      print(promptSpan.textContent+raw);
+      var n=norm(raw);
+      var ok=(n===expected)||(n===norm('import --'+role+' '+fac))||(n===norm('import '+fac+' -'+role));
+      if(!ok){ if(n.indexOf('import')!==0){ print('command not found: '+raw.split(' ')[0]+' — try: import '+fac+' --'+role,'term-dim'); } else { print('import: unknown target — usage: import <facility> --<role> (import '+fac+' --'+role+')','term-dim'); } input.value=''; input.focus(); return; }
+      input.disabled=true;
+      print('fetching '+fac+' profile …','term-out');
+      setTimeout(function(){ print('loading '+role+' toolkit …','term-out'); },350);
+      setTimeout(function(){ print('integrity check … OK','term-out'); },700);
+      setTimeout(function(){ print('mission loaded. launching …','term-ok'); },1000);
+      setTimeout(function(){ startJourney(); },1500);
+    }
+    input.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); run(); } });
+    render([
+      el('p',{class:'eyebrow',text:'// MISSION LOADER'}),
+      el('h2',{class:'subtitle',text:'Import your mission data'}),
+      el('div',{class:'panel'},[ screen, el('div',{class:'term-input-row'},[promptSpan,input]) ]),
+      el('div',{class:'btn-row'},[ el('button',{class:'btn secondary',onClick:roleScreen,text:'◀ Back'}) ])
+    ]);
+    print('cyber-trail // mission loader','term-ok');
+    print('usage: import <facility> --<role>','term-dim');
+    print('target facility : '+fac,'term-dim');
+    print('target role     : '+role,'term-dim');
+    print('—','term-dim');
+    input.focus();
+  }
 
   function meter(label,value){
     var cls=value>50?'good':value>25?'warn':'bad';
@@ -273,6 +312,21 @@ function choose(eventId,choiceId){
       el('summary',{text:'ⓘ Beyond the acronym ('+terms.length+')'}),
       dl
     ]);
+  }
+
+  function reviewBlock(o){
+    if(!o||!o.review||!o.review.length) return null;
+    var total=o.review.length, wrong=o.wrongCount||0;
+    var summary=wrong===0?('Review your answers — all '+total+' correct ✓'):('Review your answers — '+wrong+' of '+total+' wrong');
+    var ul=el('ul',{class:'review-list'});
+    o.review.forEach(function(r){
+      ul.appendChild(el('li',{class:'review-item '+(r.ok?'ok':'no')},[
+        el('span',{class:'review-mark',text:r.ok?'✓ ':'✗ '}),
+        el('span',{class:'review-label',text:r.label}),
+        el('div',{class:'review-detail',text:r.detail})
+      ]));
+    });
+    return el('details',{class:'review'},[ el('summary',{text:'ⓘ '+summary}), ul ]);
   }
 
   function journeyScreen(){
@@ -431,6 +485,7 @@ function choose(eventId,choiceId){
       el('div',{class:'panel debrief'},[
         el('span',{class:'badge '+(o.isRecommended?'ok':'no'),text: o.band ? ((o.skipped?'⤼ Skipped — ':'')+({perfect:'★ PERFECT',good:'✓ GOOD',fail:'✗ FAILED'}[o.band]||o.band)) : (o.isRecommended?'✓ Strong security decision':'✗ Risky decision')}),
         el('p',{class:'prompt-text',text:o.outcome}),
+        reviewBlock(o),
         el('hr'),
         el('p',{class:'eyebrow',text:'// THREAT INTEL'}),
         el('p',{},[ el('span',{class:'attack-name',text:L.attackType}) ]),

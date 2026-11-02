@@ -667,34 +667,63 @@ function getMiniGame(id) {
 /**
  * Grade a submitted result (server-side) into a band: 'perfect' | 'good' | 'fail'.
  * `result` shape depends on type. `skipped === true` always grades as 'fail'.
- * Returns { band, score } where score is 0..1.
+ * Returns { band, score, wrongCount, review } where:
+ *   - score is 0..1
+ *   - wrongCount is the number of items the player got wrong/missed
+ *   - review is an array of { label, ok, detail } describing each item, so the
+ *     UI can show the player exactly where they went wrong.
  */
 function scoreMiniGame(def, result, skipped) {
-  if (skipped) return { band: 'fail', score: 0 };
   const type = def.type;
 
   if (type === 'spot_the_phish') {
     const correct = new Set(def.answer.suspicious);
-    const allTokens = def.config.tokens.map((t) => t.id);
-    const benign = new Set(allTokens.filter((id) => !correct.has(id)));
-    const picked = Array.isArray(result && result.selected) ? result.selected : [];
-    const pickedSet = new Set(picked.filter((id) => allTokens.includes(id)));
+    const tokens = def.config.tokens;
+    const pickedSet = new Set(
+      (Array.isArray(result && result.selected) ? result.selected : []).filter(
+        (id) => tokens.some((t) => t.id === id),
+      ),
+    );
+    const review = [];
     let hits = 0;
-    for (const id of correct) if (pickedSet.has(id)) hits++;
     let falseAlarms = 0;
-    for (const id of pickedSet) if (benign.has(id)) falseAlarms++;
-    // score = fraction of red flags found minus a penalty for false alarms.
+    for (const t of tokens) {
+      const isFlag = correct.has(t.id);
+      const picked = pickedSet.has(t.id);
+      let ok;
+      let detail;
+      if (isFlag && picked) { ok = true; detail = 'Correctly flagged'; hits++; }
+      else if (isFlag && !picked) { ok = false; detail = 'Missed — this was a red flag'; }
+      else if (!isFlag && picked) { ok = false; detail = 'False alarm — this one was fine'; falseAlarms++; }
+      else { ok = true; detail = 'Correctly left alone'; }
+      review.push({ label: t.text, ok, detail });
+    }
     const score = clampPct(hits / correct.size - 0.25 * falseAlarms);
-    return bandFromScore(score);
+    return withReview(score, review, skipped);
   }
 
   if (type === 'sort_messages') {
     const map = def.answer.map;
-    const ids = Object.keys(map);
+    const binLabel = {};
+    for (const b of def.config.bins) binLabel[b.id] = b.label;
     const assign = (result && result.assignments) || {};
+    const review = [];
     let right = 0;
-    for (const id of ids) if (assign[id] === map[id]) right++;
-    return bandFromScore(clampPct(right / ids.length));
+    for (const it of def.config.items) {
+      const chosen = assign[it.id];
+      const correctBin = map[it.id];
+      const ok = chosen === correctBin;
+      if (ok) right++;
+      review.push({
+        label: it.text,
+        ok,
+        detail: ok
+          ? 'Correct: ' + (binLabel[correctBin] || correctBin)
+          : 'You chose "' + (binLabel[chosen] || chosen || '—') +
+            '"; correct was "' + (binLabel[correctBin] || correctBin) + '"',
+      });
+    }
+    return withReview(clampPct(right / def.config.items.length), review, skipped);
   }
 
   if (type === 'pick_practices') {
@@ -704,50 +733,90 @@ function scoreMiniGame(def, result, skipped) {
     const picked = new Set(
       Array.isArray(result && result.selected) ? result.selected : [],
     );
+    const review = [];
     let correct = 0;
-    for (const id of good) if (picked.has(id)) correct++; // good correctly picked
-    for (const id of bad) if (!picked.has(id)) correct++; // bad correctly avoided
-    return bandFromScore(clampPct(correct / total));
+    for (const o of def.config.options) {
+      const isGood = good.has(o.id);
+      const chosen = picked.has(o.id);
+      const ok = isGood ? chosen : !chosen;
+      if (ok) correct++;
+      let detail;
+      if (isGood && chosen) detail = 'Good practice — correctly chosen';
+      else if (isGood && !chosen) detail = 'Missed — this is a good practice';
+      else if (!isGood && chosen) detail = 'Risky — should NOT be chosen';
+      else detail = 'Risky — correctly avoided';
+      review.push({ label: o.text, ok, detail });
+    }
+    return withReview(clampPct(correct / total), review, skipped);
   }
 
   if (type === 'order_steps') {
     const order = def.answer.order;
+    const byId = {};
+    for (const s of def.config.steps) byId[s.id] = s.text;
     const submitted = Array.isArray(result && result.order) ? result.order : [];
+    const review = [];
     let rightPos = 0;
     for (let i = 0; i < order.length; i++) {
-      if (submitted[i] === order[i]) rightPos++;
+      const ok = submitted[i] === order[i];
+      if (ok) rightPos++;
+      review.push({
+        label: 'Position ' + (i + 1),
+        ok,
+        detail: ok
+          ? 'Correct: ' + byId[order[i]]
+          : 'You put "' + (byId[submitted[i]] || '—') +
+            '"; correct was "' + byId[order[i]] + '"',
+      });
     }
-    // Bonus emphasis: the first step being correct is critical.
     const firstRight = submitted[0] === order[0];
     let score = rightPos / order.length;
-    if (!firstRight) score = Math.min(score, 0.5); // cap if containment wasn't first
-    return bandFromScore(clampPct(score));
+    if (!firstRight) score = Math.min(score, 0.5);
+    return withReview(clampPct(score), review, skipped);
   }
 
   if (type === 'terminal') {
     const accepted = def.answer.accepted;
-    const stepIds = def.config.steps.map((s) => s.id);
+    const steps = def.config.steps;
     const submitted = (result && result.steps) || {};
     const reveals = Array.isArray(result && result.reveals) ? result.reveals : [];
+    const review = [];
     let solved = 0;
-    for (const id of stepIds) {
-      const typed = normalizeCmd(submitted[id]);
-      if (!typed) continue;
-      const patterns = (accepted[id] || []).map(normalizeCmd);
-      if (patterns.indexOf(typed) >= 0) solved++;
+    for (const s of steps) {
+      const typed = normalizeCmd(submitted[s.id]);
+      const patterns = (accepted[s.id] || []).map(normalizeCmd);
+      const matched = typed && patterns.indexOf(typed) >= 0;
+      const revealed = reveals.indexOf(s.id) >= 0;
+      if (matched) solved++;
+      review.push({
+        label: s.task,
+        ok: !!matched && !revealed,
+        detail: matched
+          ? (revealed
+              ? 'Correct, but you revealed the answer (e.g. `' + s.canonical + '`)'
+              : 'Correct: `' + (submitted[s.id] || s.canonical) + '`')
+          : (submitted[s.id]
+              ? 'Wrong: you ran `' + submitted[s.id] + '` — try e.g. `' + s.canonical + '`'
+              : 'Not attempted — the command was `' + s.canonical + '`'),
+      });
     }
-    // Base score = fraction of steps solved with a correct command.
-    let score = solved / stepIds.length;
-    // Using "reveal answer" (comfortable mode) costs a small amount per reveal,
-    // so a fully-revealed run can't score perfect — but a self-solved run at
-    // ANY comfort level can. Guided mode shows commands but counts no reveals.
-    const revealPenalty = 0.1 * reveals.filter((id) => stepIds.includes(id)).length;
-    score = clampPct(score - revealPenalty);
-    return bandFromScore(score);
+    const revealPenalty = 0.1 * reveals.filter((id) => steps.some((s) => s.id === id)).length;
+    const score = clampPct(solved / steps.length - revealPenalty);
+    return withReview(score, review, skipped);
   }
 
   // Unknown type → treat as fail (defensive).
-  return { band: 'fail', score: 0 };
+  return { band: 'fail', score: 0, wrongCount: 0, review: [] };
+}
+
+/**
+ * Wrap a score + review into the final grade object. A SKIP always grades as a
+ * fail band (full loss) but still returns the review so the player can learn.
+ */
+function withReview(score, review, skipped) {
+  const wrongCount = review.filter((r) => !r.ok).length;
+  const band = skipped ? 'fail' : bandFromScore(score).band;
+  return { band, score, wrongCount, review, skipped: !!skipped };
 }
 
 function bandFromScore(score) {

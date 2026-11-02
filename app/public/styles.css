@@ -432,6 +432,33 @@ body::before {
   .term-levels { grid-template-columns: 1fr; }
   .term-screen { height: 190px; font-size: 0.82rem; }
 }
+.term-import-screen { height: 160px; }
+
+/* ---------------------------- mini-game review ---------------------------- */
+.review {
+  margin-top: 0.9rem;
+  border: 1px solid rgba(77,181,255,0.35);
+  background: rgba(10, 16, 24, 0.6);
+  border-radius: 3px;
+}
+.review > summary {
+  cursor: pointer; list-style: none;
+  padding: 0.55rem 0.9rem;
+  font-family: var(--font-mono); font-size: 0.85rem;
+  color: var(--blue); user-select: none;
+}
+.review > summary::-webkit-details-marker { display: none; }
+.review > summary::after { content: ' ▸'; color: var(--blue); }
+.review[open] > summary::after { content: ' ▾'; }
+.review > summary:hover { color: var(--green); }
+.review-list { margin: 0; padding: 0.2rem 0.9rem 0.8rem; list-style: none; border-top: 1px solid rgba(77,181,255,0.2); }
+.review-item { padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.review-item:last-child { border-bottom: none; }
+.review-mark { font-family: var(--font-mono); font-weight: 700; }
+.review-item.ok .review-mark { color: var(--green); }
+.review-item.no .review-mark { color: var(--red); }
+.review-label { color: var(--text); }
+.review-detail { color: var(--dim); font-size: 0.9rem; margin-top: 0.2rem; padding-left: 1.2rem; line-height: 1.5; }
 
 /* ---------------------------- end screens ---------------------------- */
 .endbanner { font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 900; margin: 0.5rem 0; }

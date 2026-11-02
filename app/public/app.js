@@ -131,8 +131,18 @@
     ]);
   }
 
-  async function beginGame(roleId) {
+  function beginGame(roleId) {
     state.roleId = roleId;
+    // On mobile (touch + narrow screen), skip the typing step entirely and go
+    // straight into the mission. On desktop, show the themed import terminal.
+    if (isMobile()) {
+      startJourney();
+    } else {
+      importScreen();
+    }
+  }
+
+  async function startJourney() {
     try {
       state.game = await api('/api/game/start', {
         method: 'POST',
@@ -144,6 +154,96 @@
       roleScreen();
       showError(e.message);
     }
+  }
+
+  // Treat as mobile when the device has a coarse/touch pointer AND a narrow
+  // viewport — catches phones without falsely skipping touch-enabled desktops.
+  function isMobile() {
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const touch = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
+    const narrow = window.innerWidth <= 820;
+    const uaMobile = navigator.userAgentData
+      ? !!navigator.userAgentData.mobile
+      : /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent || '');
+    return (uaMobile || ((coarse || touch) && narrow));
+  }
+
+  // ------------------------- import terminal (mission loader) -------------------------
+  // Flavor-only gate: the player types `import <facility> --<role>` to "load"
+  // their mission. Guidance is baked into the terminal's usage line. Not scored.
+  function importScreen() {
+    const fac = state.facilityId;
+    const role = state.roleId;
+    const expected = ('import ' + fac + ' --' + role).toLowerCase();
+
+    const screen = el('div', { class: 'term-screen term-import-screen' });
+    const input = el('input', { class: 'term-input', type: 'text', autocomplete: 'off',
+      spellcheck: 'false', placeholder: 'type the import command and press Enter' });
+    const promptSpan = el('span', { class: 'term-prompt', text: 'operator@cyber-trail:~$ ' });
+
+    function print(line, cls) {
+      screen.appendChild(el('div', { class: 'term-line' + (cls ? ' ' + cls : '') }, [line]));
+      screen.scrollTop = screen.scrollHeight;
+    }
+
+    function boot() {
+      print('cyber-trail // mission loader', 'term-ok');
+      print('usage: import <facility> --<role>', 'term-dim');
+      print('target facility : ' + fac, 'term-dim');
+      print('target role     : ' + role, 'term-dim');
+      print('—', 'term-dim');
+    }
+
+    function normalize(s) {
+      return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    async function run() {
+      const raw = input.value.trim();
+      if (!raw) return;
+      print(promptSpan.textContent + raw);
+      const norm = normalize(raw);
+      // Accept: "import <fac> --<role>" with flexible spacing/order of the flag.
+      const ok =
+        norm === expected ||
+        norm === normalize('import --' + role + ' ' + fac) ||
+        norm === normalize('import ' + fac + ' -' + role);
+      if (!ok) {
+        if (norm.indexOf('import') !== 0) {
+          print("command not found: " + raw.split(' ')[0] + ' — try: import ' + fac + ' --' + role, 'term-dim');
+        } else {
+          print("import: unknown target — usage: import <facility> --<role> (import " + fac + ' --' + role + ')', 'term-dim');
+        }
+        input.value = '';
+        input.focus();
+        return;
+      }
+      // Success: brief simulated load, then start.
+      input.disabled = true;
+      print('fetching ' + fac + ' profile …', 'term-out');
+      setTimeout(() => print('loading ' + role + ' toolkit …', 'term-out'), 350);
+      setTimeout(() => print('integrity check … OK', 'term-out'), 700);
+      setTimeout(() => { print('mission loaded. launching …', 'term-ok'); }, 1000);
+      setTimeout(() => startJourney(), 1500);
+    }
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); run(); }
+    });
+
+    render([
+      el('p', { class: 'eyebrow', text: '// MISSION LOADER' }),
+      el('h2', { class: 'subtitle', text: 'Import your mission data' }),
+      el('div', { class: 'panel' }, [
+        screen,
+        el('div', { class: 'term-input-row' }, [promptSpan, input]),
+      ]),
+      el('div', { class: 'btn-row' }, [
+        el('button', { class: 'btn secondary', onClick: roleScreen, text: '◀ Back' }),
+      ]),
+    ]);
+    boot();
+    input.focus();
   }
 
   // ------------------------- HUD -------------------------
@@ -185,6 +285,29 @@
       ),
     ]);
     return details;
+  }
+
+  // ------------------------- mini-game review ("where you went wrong") -------------------------
+  // Collapsible per-item breakdown shown in the debrief after a mini-game.
+  function reviewBlock(o) {
+    if (!o || !o.review || !o.review.length) return null;
+    const total = o.review.length;
+    const wrong = o.wrongCount || 0;
+    const summary = wrong === 0
+      ? 'Review your answers — all ' + total + ' correct ✓'
+      : 'Review your answers — ' + wrong + ' of ' + total + ' wrong';
+    return el('details', { class: 'review' }, [
+      el('summary', { text: 'ⓘ ' + summary }),
+      el('ul', { class: 'review-list' },
+        o.review.map((r) =>
+          el('li', { class: 'review-item ' + (r.ok ? 'ok' : 'no') }, [
+            el('span', { class: 'review-mark', text: r.ok ? '✓ ' : '✗ ' }),
+            el('span', { class: 'review-label', text: r.label }),
+            el('div', { class: 'review-detail', text: r.detail }),
+          ]),
+        ),
+      ),
+    ]);
   }
 
   // ------------------------- journey / event -------------------------
@@ -546,6 +669,7 @@
               ({ perfect: '★ PERFECT', good: '✓ GOOD', fail: '✗ FAILED' }[o.band] || o.band)
             : (o.isRecommended ? '✓ Strong security decision' : '✗ Risky decision') }),
         el('p', { class: 'prompt-text', text: o.outcome }),
+        reviewBlock(o),
         el('hr'),
         el('p', { class: 'eyebrow', text: '// THREAT INTEL' }),
         el('p', {}, [ el('span', { class: 'attack-name', text: L.attackType }) ]),

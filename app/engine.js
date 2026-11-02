@@ -211,7 +211,8 @@ function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
   const event = findEvent(run.currentEventId, pool);
   if (!event) throw new GameEngineError('Event not found.', 'event_not_found');
 
-  const { band } = scoreMiniGame(def, result, Boolean(skipped));
+  const scored = scoreMiniGame(def, result, Boolean(skipped));
+  const band = scored.band;
   const graded = def.grades[band];
 
   for (const eff of graded.effects) {
@@ -236,6 +237,8 @@ function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
     isRecommended: band === 'perfect' || band === 'good',
     band,
     skipped: Boolean(skipped),
+    wrongCount: scored.wrongCount,
+    review: scored.review,
     learning: event.learning,
     eventTitle: event.title,
     glossary: glossaryFor(debriefText),
