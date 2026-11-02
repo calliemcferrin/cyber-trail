@@ -690,7 +690,7 @@ const EVENTS = [
     choices: [
       {
         id: 'login_now',
-        label: 'Log in through the link so you do not lose your coverage.',
+        label: 'Log in through the link to confirm your coverage before the deadline.',
         effects: [
           { key: 'integrity', amount: -25 },
           { key: 'morale', amount: -5 },
@@ -702,7 +702,7 @@ const EVENTS = [
       },
       {
         id: 'open_portal_directly',
-        label: 'Ignore the link; open the known staff portal from your bookmark.',
+        label: 'Skip the link and open the staff portal from your own bookmark.',
         effects: [{ key: 'morale', amount: 5 }],
         isRecommended: true,
         outcome:
@@ -746,18 +746,29 @@ const EVENTS = [
       'Your desk phone rings during a hectic shift. "This is IT — we are ' +
       'seeing your account spread malware across the network. I need your ' +
       'password right now to lock it down before patient systems go offline." ' +
-      'They sound official and urgent. Do you give it to them?',
+      'They sound official and urgent. How do you respond?',
     facilities: ['hospital'],
     roles: ['employee'],
     choices: [
       {
         id: 'give_password',
-        label: 'Give your password so they can stop the spread fast.',
+        label: 'Give them your password so they can stop the spread fast.',
         effects: [{ key: 'integrity', amount: -30 }],
         isRecommended: false,
         outcome:
           'Real IT will never ask for your password. You handed an attacker ' +
           'direct access by trusting an urgent, authoritative-sounding voice.',
+      },
+      {
+        id: 'change_then_share',
+        label: 'Change your password to something temporary and give them that.',
+        effects: [{ key: 'integrity', amount: -20 }],
+        isRecommended: false,
+        outcome:
+          'Sharing a "temporary" password still hands over working access right ' +
+          'now \u2014 and signals you can be talked into it. There is no version of ' +
+          'giving your password to a caller that is safe. Legitimate IT never ' +
+          'needs it.',
       },
       {
         id: 'verify_callback',
@@ -801,7 +812,7 @@ const EVENTS = [
     choices: [
       {
         id: 'share_chart',
-        label: 'Help them out and read the diagnosis from the chart.',
+        label: 'Read them the diagnosis from the chart to help.',
         effects: [
           { key: 'integrity', amount: -15 },
           { key: 'morale', amount: -5 },
@@ -810,6 +821,17 @@ const EVENTS = [
         outcome:
           'You disclosed protected health information to an unverified person ' +
           '\u2014 a privacy breach. Kindness was weaponized to extract PHI.',
+      },
+      {
+        id: 'vague_reassure',
+        label: 'Share only a general reassurance like "they\u2019re stable" without details.',
+        effects: [{ key: 'integrity', amount: -8 }],
+        isRecommended: false,
+        outcome:
+          'Even confirming status or that the person is a patient is disclosing ' +
+          'PHI to someone you haven\u2019t verified \u2014 and it keeps you engaged with a ' +
+          'possible social engineer. Any patient information should go only ' +
+          'through the care team and privacy process.',
       },
       {
         id: 'follow_privacy_policy',
@@ -855,7 +877,7 @@ const EVENTS = [
     choices: [
       {
         id: 'pay_to_restore',
-        label: 'Push to pay immediately so clinicians get the EHR back.',
+        label: 'Pay the ransom now so clinicians get the EHR back quickly.',
         effects: [
           { key: 'budget', amount: -30 },
           { key: 'integrity', amount: -10 },
@@ -864,6 +886,15 @@ const EVENTS = [
         outcome:
           'Payment is slow, unreliable, and funds the attackers \u2014 while the ' +
           'infection keeps spreading. It is not a containment strategy.',
+      },
+      {
+        id: 'reboot_everything',
+        label: 'Reboot the affected servers to try to clear the infection.',
+        effects: [{ key: 'integrity', amount: -20 }],
+        isRecommended: false,
+        outcome:
+          'Rebooting into infected systems does not remove ransomware and can ' +
+          'destroy forensic evidence. Contain first, then investigate and restore.',
       },
       {
         id: 'isolate_and_downtime',
@@ -878,15 +909,6 @@ const EVENTS = [
           'You contained the spread and clinicians switched to paper-based ' +
           'downtime procedures to keep caring for patients safely. Isolation ' +
           'plus rehearsed downtime plans keep a hospital running through an attack.',
-      },
-      {
-        id: 'reboot_everything',
-        label: 'Reboot all servers and hope they come back clean.',
-        effects: [{ key: 'integrity', amount: -20 }],
-        isRecommended: false,
-        outcome:
-          'Rebooting into infected systems does not remove ransomware and can ' +
-          'destroy forensic evidence. Contain first, then investigate and restore.',
       },
     ],
     learning: {
@@ -921,12 +943,25 @@ const EVENTS = [
     choices: [
       {
         id: 'ignore_devices',
-        label: 'Leave them \u2014 they are medical devices, not your problem.',
+        label: 'Wait for the vendor\u2019s patch before changing anything.',
         effects: [{ key: 'integrity', amount: -22 }],
         isRecommended: false,
         outcome:
-          'Vulnerable, internet-reachable medical devices are a real attack ' +
-          'path and a patient-safety risk. Ignoring them leaves the door open.',
+          'Waiting on a lagging vendor patch leaves vulnerable, reachable ' +
+          'medical devices exposed the whole time \u2014 a real attack path and a ' +
+          'patient-safety risk. You can reduce exposure now without touching the ' +
+          'devices themselves.',
+      },
+      {
+        id: 'firewall_rule_only',
+        label: 'Add a firewall rule to block the devices\u2019 internet access and move on.',
+        effects: [{ key: 'integrity', amount: -4 }],
+        isRecommended: false,
+        outcome:
+          'Blocking outbound internet helps, but the devices still sit on the ' +
+          'same flat network as everything else \u2014 so a foothold anywhere can ' +
+          'still reach them laterally. A single rule isn\u2019t the same as isolating ' +
+          'and monitoring them.',
       },
       {
         id: 'segment_devices',
@@ -973,7 +1008,7 @@ const EVENTS = [
     choices: [
       {
         id: 'assume_backup',
-        label: 'Assume it is a backup job and close the alert.',
+        label: 'Chalk it up to a backup job and close the alert.',
         effects: [{ key: 'integrity', amount: -20 }],
         isRecommended: false,
         outcome:
@@ -981,8 +1016,19 @@ const EVENTS = [
           'data theft is designed to blend in with normal traffic.',
       },
       {
+        id: 'monitor_more',
+        label: 'Leave it running and monitor a few more days to be sure it\u2019s malicious.',
+        effects: [{ key: 'integrity', amount: -12 }],
+        isRecommended: false,
+        outcome:
+          'Wanting confirmation is reasonable, but every day you "watch" is ' +
+          'another day of patient records leaving the building. You can preserve ' +
+          'evidence and investigate *while* cutting off the suspicious ' +
+          'destination \u2014 you don\u2019t have to let the theft continue to study it.',
+      },
+      {
         id: 'investigate_block',
-        label: 'Block the destination, preserve logs, and launch an investigation.',
+        label: 'Block the destination, preserve logs, and launch an investigation now.',
         effects: [
           { key: 'integrity', amount: 8 },
           { key: 'uptime', amount: -2 },
@@ -1103,15 +1149,27 @@ const EVENTS = [
     choices: [
       {
         id: 'stay_silent',
-        label: 'Say nothing and hope it was not your patients\u2019 data.',
+        label: 'Hold off on any disclosure until you\u2019re certain patients were affected.',
         effects: [
           { key: 'integrity', amount: -15 },
           { key: 'morale', amount: -8 },
         ],
         isRecommended: false,
         outcome:
-          'Concealing a breach erodes trust and typically violates breach-' +
-          'notification obligations \u2014 compounding the harm and the penalties.',
+          'Waiting for total certainty shades into concealment \u2014 which erodes ' +
+          'trust and typically violates breach-notification timelines, ' +
+          'compounding the harm and the penalties.',
+      },
+      {
+        id: 'investigate_quietly',
+        label: 'Investigate internally and quietly first; notify only if you confirm exposure.',
+        effects: [{ key: 'integrity', amount: -8 }],
+        isRecommended: false,
+        outcome:
+          'Scoping the exposure is right \u2014 but doing it "quietly" to delay ' +
+          'notification risks blowing legal deadlines that start when you ' +
+          'reasonably should know. Investigate *and* engage your notification ' +
+          'process in parallel; the two aren\u2019t either/or.',
       },
       {
         id: 'activate_ir',
@@ -1158,7 +1216,7 @@ const EVENTS = [
     choices: [
       {
         id: 'let_it_slide',
-        label: 'Let it slide \u2014 they were just curious, no harm done.',
+        label: 'Let it go \u2014 no data left the building and they were only curious.',
         effects: [{ key: 'integrity', amount: -16 }],
         isRecommended: false,
         outcome:
@@ -1166,8 +1224,19 @@ const EVENTS = [
           'intent. Tolerating "curiosity" normalizes insider misuse of PHI.',
       },
       {
+        id: 'general_reminder',
+        label: 'Send a general reminder to all staff about the records policy.',
+        effects: [{ key: 'integrity', amount: -6 }],
+        isRecommended: false,
+        outcome:
+          'A blanket reminder feels proportionate but holds no one accountable ' +
+          'for an actual violation, and leaves the over-broad access that let it ' +
+          'happen in place. Address the specific incident and tighten access, not ' +
+          'just send an email.',
+      },
+      {
         id: 'enforce_and_educate',
-        label: 'Enforce least-privilege access, follow policy, and retrain staff.',
+        label: 'Act on the violations, tighten access to the care team, and retrain staff.',
         effects: [
           { key: 'integrity', amount: 9 },
           { key: 'morale', amount: -3 },
