@@ -454,6 +454,23 @@
   // The client collects the player's raw result and submits it; the SERVER
   // grades it (the answer key never reaches the browser).
   function miniGameBlock(ev) {
+    try {
+      return miniGameBlockInner(ev);
+    } catch (err) {
+      // Surface a render failure on-screen instead of a blank panel, and give a
+      // fallback so the run can continue.
+      const box = el('div', { class: 'minigame' }, [
+        el('p', { class: 'error', text: 'This challenge failed to load: ' + (err && err.message) }),
+        el('div', { class: 'btn-row' }, [
+          el('button', { class: 'btn secondary', onClick: () => submitMiniGame(ev, {}, true),
+            text: 'Skip this challenge and continue' }),
+        ]),
+      ]);
+      return box;
+    }
+  }
+
+  function miniGameBlockInner(ev) {
     const mg = ev.minigame;
     const cfg = mg.config;
     const wrap = el('div', { class: 'minigame' });

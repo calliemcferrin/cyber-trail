@@ -413,6 +413,15 @@ function choose(eventId,choiceId){
     ]);
   }
   function miniGameBlock(ev){
+    try { return miniGameBlockInner(ev); }
+    catch(err){
+      return el('div',{class:'minigame'},[
+        el('p',{class:'error',text:'This challenge failed to load: '+(err&&err.message)}),
+        el('div',{class:'btn-row'},[ el('button',{class:'btn secondary',onClick:function(){ doSubmitMiniGame(ev,{},true); },text:'Skip this challenge and continue'}) ])
+      ]);
+    }
+  }
+  function miniGameBlockInner(ev){
     var mg=ev.minigame, cfg=mg.config;
     var wrap=el('div',{class:'minigame'},[ el('p',{class:'mg-instructions',text:cfg.instructions}) ]);
     var st={ selected:{}, assignments:{} };
