@@ -142,12 +142,29 @@ body::before {
   text-transform: uppercase;
   letter-spacing: 0.25em;
 }
+.hero-logo {
+  display: block;
+  width: min(360px, 68vw);
+  height: auto;
+  margin: 0.4rem auto 0.2rem;
+  filter: drop-shadow(0 0 16px rgba(91, 255, 122, 0.35));
+}
 .collab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
   color: var(--blue);
-  font-size: 0.92rem;
-  margin: 0.2rem auto 1.4rem;
-  max-width: 52ch;
+  font-size: 0.9rem;
+  margin: 0.4rem auto 1.4rem;
+  max-width: 60ch;
   line-height: 1.5;
+}
+.collab-logo {
+  width: 64px;
+  height: auto;
+  flex: 0 0 auto;
 }
 .prompt-text {
   font-size: 1.1rem;

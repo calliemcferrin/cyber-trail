@@ -14,6 +14,16 @@ const path = require('node:path');
 
 const css = fs.readFileSync(path.join(__dirname, 'public', 'styles.css'), 'utf8');
 const matrixJs = fs.readFileSync(path.join(__dirname, 'public', 'matrix.js'), 'utf8');
+
+// Inline the logo images as base64 data URIs so the standalone stays a single
+// offline file. (Marshall marks used with permission.)
+function dataUri(file, mime) {
+  const b64 = fs.readFileSync(path.join(__dirname, 'public', file)).toString('base64');
+  return 'data:' + mime + ';base64,' + b64;
+}
+const cyberBisonUri = dataUri('cyber-bison.jpg', 'image/jpeg');
+const marshallMUri = dataUri('marshall-m.png', 'image/png');
+
 const { FACILITIES, ROLES, EVENTS } = require('./content.js');
 const { GLOSSARY } = require('./glossary.js');
 const {
@@ -219,9 +229,13 @@ function choose(eventId,choiceId){
     render([
       el('div',{class:'center'},[
         el('p',{class:'eyebrow',text:'// INSERT COIN — CRITICAL INFRASTRUCTURE DIVISION'}),
+        el('img',{class:'hero-logo',src:'${cyberBisonUri}',alt:'Marshall Cyber Bison'}),
         el('h1',{class:'title',text:'CYBER TRAIL'}),
         el('p',{class:'subtitle',text:'Survive the journey. Defend the grid. Learn the threats.'}),
-        el('p',{class:'collab',text:'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬'})
+        el('div',{class:'collab'},[
+          el('img',{class:'collab-logo',src:'${marshallMUri}',alt:'Marshall University'}),
+          el('span',{text:'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬'})
+        ])
       ]),
       el('div',{class:'panel'},[
         el('p',{class:'prompt-text',text:'The year is now. You are responsible for guiding a piece of critical infrastructure through a gauntlet of cyber threats. Like the pioneers of old, your journey is full of hazards — but yours are phishing emails, ransomware, and insider threats instead of dysentery and broken axles. Choose your facility. Choose your role. Make smart decisions. Survive.'}),
