@@ -604,6 +604,112 @@ const MINIGAMES = {
       },
     },
   },
+
+  // ───────────────── Trace the Intrusion (network kill-chain path) ─────────────────
+  // Player clicks the network nodes in the ORDER the attack spread, following
+  // the kill chain from entry point to the OT target. Graded like order_steps.
+  trace_intrusion_path: {
+    type: 'order_steps',
+    attackType: 'Lateral Movement / Kill Chain',
+    config: {
+      instructions:
+        'Logs show an intruder moved through the network. Reconstruct the path ' +
+        'by selecting the nodes in the order the attack spread \u2014 from entry ' +
+        'point to final target. Submit when done.',
+      steps: [
+        { id: 'n_email', text: 'Phished employee laptop (initial foothold via email)' },
+        { id: 'n_ad', text: 'Domain controller (stole credentials, escalated privilege)' },
+        { id: 'n_jump', text: 'IT/OT jump host (pivoted toward operations)' },
+        { id: 'n_hmi', text: 'SCADA HMI workstation (reached the control layer)' },
+        { id: 'n_plc', text: 'PLC / physical process (final target)' },
+      ],
+    },
+    answer: { order: ['n_email', 'n_ad', 'n_jump', 'n_hmi', 'n_plc'] },
+    grades: {
+      perfect: {
+        effects: [{ key: 'integrity', amount: 8 }, { key: 'morale', amount: 2 }],
+        outcome:
+          'You reconstructed the kill chain exactly: phished laptop \u2192 domain ' +
+          'controller \u2192 jump host \u2192 HMI \u2192 PLC. Understanding how attackers move ' +
+          'laterally from IT toward OT is how you cut them off and spot the next one.',
+      },
+      good: {
+        effects: [{ key: 'integrity', amount: 3 }],
+        outcome:
+          'Close. Attacks typically start at an exposed human/IT asset and pivot ' +
+          'step by step toward the OT target \u2014 each hop reusing access gained in ' +
+          'the last. Segmentation and monitoring break that chain.',
+      },
+      fail: {
+        effects: [{ key: 'integrity', amount: -16 }, { key: 'uptime', amount: -4 }],
+        outcome:
+          'The path was out of order. Reconstructing lateral movement matters: ' +
+          'if you misread how the attacker reached the control layer, you will ' +
+          'miss the chokepoints that stop it.',
+      },
+    },
+  },
+
+  // ───────────────── Segment the Network (zone assignment) ─────────────────
+  // Everything sits on one flat network. Player assigns each device to the
+  // correct zone (IT / DMZ / OT) so a breach can't cross freely. Like sorting.
+  segment_network_zones: {
+    type: 'sort_messages',
+    attackType: 'Network Segmentation (IT/OT)',
+    config: {
+      instructions:
+        'These devices are all on one flat network \u2014 a breach anywhere can ' +
+        'reach everything. Assign each device to the right security zone so an ' +
+        'intrusion is contained. Submit when done.',
+      bins: [
+        { id: 'it', label: 'IT (corporate)' },
+        { id: 'dmz', label: 'DMZ (buffer)' },
+        { id: 'ot', label: 'OT (control network)' },
+      ],
+      items: [
+        { id: 'd_email', text: 'Staff email & office workstations' },
+        { id: 'd_web', text: 'Public-facing customer web portal' },
+        { id: 'd_hist', text: 'Data historian (shares OT data with IT)' },
+        { id: 'd_plc', text: 'PLCs controlling pumps and valves' },
+        { id: 'd_hmi', text: 'SCADA HMI operator consoles' },
+        { id: 'd_jump', text: 'Vendor remote-access jump host' },
+      ],
+    },
+    answer: {
+      map: {
+        d_email: 'it',
+        d_web: 'dmz',
+        d_hist: 'dmz',
+        d_plc: 'ot',
+        d_hmi: 'ot',
+        d_jump: 'dmz',
+      },
+    },
+    grades: {
+      perfect: {
+        effects: [{ key: 'integrity', amount: 9 }, { key: 'uptime', amount: -2 }],
+        outcome:
+          'Textbook segmentation: office IT stays in IT; internet-facing and ' +
+          'bridging systems (web portal, data historian, vendor jump host) go in ' +
+          'a monitored DMZ; and the PLCs and HMIs sit in a protected OT zone. Now ' +
+          'a breach in one zone cannot freely reach the physical process.',
+      },
+      good: {
+        effects: [{ key: 'integrity', amount: 3 }],
+        outcome:
+          'Mostly sound. The key rules: never put control devices (PLCs/HMIs) ' +
+          'where IT can reach them directly, and anything that bridges IT and OT ' +
+          '(historians, vendor access, public portals) belongs in a monitored DMZ.',
+      },
+      fail: {
+        effects: [{ key: 'integrity', amount: -18 }, { key: 'uptime', amount: -3 }],
+        outcome:
+          'Too many devices in the wrong zone. Flat or mis-segmented networks are ' +
+          'how an office-network breach ends up operating the pumps \u2014 the exact ' +
+          'exposure behind incidents like Colonial Pipeline.',
+      },
+    },
+  },
 };
 
 /**
@@ -628,6 +734,11 @@ const EVENT_MINIGAMES = {
   zero_day_operator: 'order_zero_day_steps',
   // Terminal (adaptive Linux investigation)
   plc_logic_operator: 'terminal_linux_triage',
+  // Trace the intrusion (network kill-chain path)
+  data_exfil_operator: 'trace_intrusion_path',
+  // Segment the network (IT/OT zone assignment)
+  it_ot_convergence_gas: 'segment_network_zones',
+  ot_segmentation_water: 'segment_network_zones',
 };
 
 function miniGameIdForEvent(eventId) {
