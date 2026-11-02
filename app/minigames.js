@@ -202,6 +202,219 @@ const MINIGAMES = {
     },
   },
 
+  // ───────── Spot the Phish: hospital benefits-deadline lure ─────────
+  spot_the_phish_benefits: {
+    type: 'spot_the_phish',
+    attackType: 'Phishing',
+    config: {
+      instructions:
+        'This "open enrollment" email wants you to log in. Click every ' +
+        'suspicious element, then submit.',
+      from: 'HR Benefits <benefits@stmercy-hr-portal.com>',
+      subject: 'ACTION REQUIRED: confirm benefits before enrollment closes TONIGHT',
+      tokens: [
+        { id: 't1', text: 'benefits@stmercy-hr-portal.com' },
+        { id: 't2', text: 'before enrollment closes TONIGHT' },
+        { id: 't3', text: 'or you will lose your coverage' },
+        { id: 't4', text: 'Log in here to confirm' },
+        { id: 't5', text: 'Open Enrollment runs this month' },
+      ],
+    },
+    answer: { suspicious: ['t1', 't2', 't3', 't4'] },
+    grades: {
+      perfect: {
+        effects: [{ key: 'integrity', amount: 8 }, { key: 'morale', amount: 2 }],
+        outcome:
+          'You flagged the look-alike HR domain, the "tonight" deadline, the ' +
+          'coverage-loss threat, and the login link. Seasonal, emotional lures ' +
+          'like benefits deadlines are classic phishing bait.',
+      },
+      good: {
+        effects: [{ key: 'integrity', amount: 3 }],
+        outcome:
+          'Enough red flags caught to stay safe. The sending domain and the ' +
+          'manufactured deadline were the biggest tells.',
+      },
+      fail: {
+        effects: [{ key: 'integrity', amount: -20 }, { key: 'morale', amount: -4 }],
+        outcome:
+          'The deadline pressure worked and credentials were harvested. Always ' +
+          'reach the real portal from your own bookmark, never an email link.',
+      },
+    },
+  },
+
+  // ───────── Spot the Deepfake: red flags in a "viral" video ─────────
+  spot_the_deepfake: {
+    type: 'spot_the_phish',
+    attackType: 'AI Exploitation / Deepfake Disinformation',
+    config: {
+      instructions:
+        'A viral "emergency" video of an official is going around. Click every ' +
+        'red flag that suggests it is an AI deepfake, then submit.',
+      from: 'Posted by: @breaking_alerts_2am (unverified account)',
+      subject: 'Clip: "County orders immediate evacuation — share now!"',
+      tokens: [
+        { id: 't1', text: 'Posted only by an unverified, brand-new account' },
+        { id: 't2', text: 'Not on any official county channel or website' },
+        { id: 't3', text: 'Mouth movements and audio are slightly out of sync' },
+        { id: 't4', text: 'Urges you to "share now" before verifying' },
+        { id: 't5', text: 'The official is a real person who exists' },
+      ],
+    },
+    answer: { suspicious: ['t1', 't2', 't3', 't4'] },
+    grades: {
+      perfect: {
+        effects: [{ key: 'integrity', amount: 8 }, { key: 'morale', amount: 2 }],
+        outcome:
+          'You spotted the unverified source, the absence from official ' +
+          'channels, the lip-sync artifacts, and the "share now" urgency — the ' +
+          'hallmarks of deepfake disinformation. Verify through official ' +
+          'channels before believing or sharing.',
+      },
+      good: {
+        effects: [{ key: 'integrity', amount: 3 }],
+        outcome:
+          'Good eye on most red flags. The strongest tell is simple: a real ' +
+          'emergency order appears on official, authenticated channels — not ' +
+          'only on an anonymous account.',
+      },
+      fail: {
+        effects: [{ key: 'integrity', amount: -18 }, { key: 'morale', amount: -5 }],
+        outcome:
+          'The fake spread. Deepfakes exploit urgency and trust; the defense is ' +
+          'to check official channels and resist the pressure to share instantly.',
+      },
+    },
+  },
+
+  // ───────── Pick Practices: defend against credential stuffing ─────────
+  pick_credential_defenses: {
+    type: 'pick_practices',
+    attackType: 'Credential Stuffing / Password Attack',
+    config: {
+      instructions:
+        'A flood of logins is hitting your portal with reused passwords. Select ' +
+        'every defense that actually helps, and avoid the non-answers. Submit ' +
+        'when ready.',
+      options: [
+        { id: 'o1', text: 'Require multi-factor authentication' },
+        { id: 'o2', text: 'Rate-limit and lock out repeated failed logins' },
+        { id: 'o3', text: 'Ban known-breached / reused passwords' },
+        { id: 'o4', text: 'Email users asking them to "be careful"' },
+        { id: 'o5', text: 'Shorten the minimum password length to reduce lockouts' },
+        { id: 'o6', text: 'Monitor for logins from impossible-travel locations' },
+      ],
+    },
+    answer: { good: ['o1', 'o2', 'o3', 'o6'], bad: ['o4', 'o5'] },
+    grades: {
+      perfect: {
+        effects: [{ key: 'integrity', amount: 8 }],
+        outcome:
+          'Exactly right: MFA, rate-limiting/lockout, banning breached passwords, ' +
+          'and anomaly detection all directly defeat credential stuffing — while ' +
+          'a vague "be careful" email and weaker passwords do nothing (or hurt).',
+      },
+      good: {
+        effects: [{ key: 'integrity', amount: 3 }],
+        outcome:
+          'Mostly solid. The single highest-value control is MFA — it makes a ' +
+          'stolen password alone useless. Weakening password rules never helps.',
+      },
+      fail: {
+        effects: [{ key: 'integrity', amount: -16 }],
+        outcome:
+          'Too many non-answers chosen. Awareness emails and shorter passwords ' +
+          'do not stop automated credential stuffing — MFA and lockouts do.',
+      },
+    },
+  },
+
+  // ───────── Order the Response: zero-day with no patch ─────────
+  order_zero_day_steps: {
+    type: 'order_steps',
+    attackType: 'Zero-Day Exploitation',
+    config: {
+      instructions:
+        'An internet-facing appliance is being exploited via a zero-day with no ' +
+        'patch yet. Put your response in the right order (first action at the ' +
+        'top), then submit.',
+      steps: [
+        { id: 'z_reduce', text: 'Reduce exposure now (take it off the internet / restrict access)' },
+        { id: 'z_mitigate', text: 'Apply the vendor\u2019s interim mitigations' },
+        { id: 'z_hunt', text: 'Threat-hunt for signs it was already compromised' },
+        { id: 'z_patch', text: 'Apply the real patch once the vendor ships it' },
+      ],
+    },
+    answer: { order: ['z_reduce', 'z_mitigate', 'z_hunt', 'z_patch'] },
+    grades: {
+      perfect: {
+        effects: [{ key: 'integrity', amount: 8 }, { key: 'uptime', amount: -5 }],
+        outcome:
+          'Cut exposure first, apply mitigations, assume compromise and hunt, ' +
+          'then patch when available. With active exploitation and no patch, ' +
+          'reducing exposure immediately is everything.',
+      },
+      good: {
+        effects: [{ key: 'integrity', amount: 2 }, { key: 'uptime', amount: -6 }],
+        outcome:
+          'Close. The critical first move is to reduce exposure right away — ' +
+          'waiting on anything while the flaw is internet-reachable invites a breach.',
+      },
+      fail: {
+        effects: [{ key: 'integrity', amount: -18 }, { key: 'uptime', amount: -5 }],
+        outcome:
+          'That order left the appliance exposed too long. For a zero-day under ' +
+          'active attack, exposure reduction must come before you wait for a patch.',
+      },
+    },
+  },
+
+  // ───────── Sort: verify-the-request triage (government) ─────────
+  sort_verify_requests: {
+    type: 'sort_messages',
+    attackType: 'Social Engineering / Impersonation',
+    config: {
+      instructions:
+        'High-pressure requests are coming in. Triage each one. Submit when done.',
+      bins: [
+        { id: 'trust', label: 'Act on it' },
+        { id: 'verify', label: 'Verify out-of-band' },
+        { id: 'report', label: 'Report as scam' },
+      ],
+      items: [
+        { id: 'r1', text: 'A text "from a senior official" asks you to buy gift cards, in secret.' },
+        { id: 'r2', text: 'A video call directs you to wire emergency funds to a new account now.' },
+        { id: 'r3', text: 'A caller claiming to be IT asks you to approve an MFA prompt for them.' },
+        { id: 'r4', text: 'Your teammate, in person, asks you to hold the lift for them.' },
+        { id: 'r5', text: 'An email says a vendor\u2019s bank details changed; please update payments.' },
+      ],
+    },
+    answer: { map: { r1: 'report', r2: 'verify', r3: 'report', r4: 'trust', r5: 'verify' } },
+    grades: {
+      perfect: {
+        effects: [{ key: 'integrity', amount: 8 }, { key: 'morale', amount: 2 }],
+        outcome:
+          'Spot on: report the gift-card and MFA-approval scams, verify the ' +
+          'fund-wire and bank-change requests out-of-band, and the in-person ' +
+          'lift request is harmless. Urgency + secrecy + money = verify or report.',
+      },
+      good: {
+        effects: [{ key: 'integrity', amount: 3 }],
+        outcome:
+          'Mostly right. Remember: any money movement or MFA approval requested ' +
+          'under pressure needs out-of-band verification — or a report if it is ' +
+          'an obvious scam pattern (gift cards, secrecy).',
+      },
+      fail: {
+        effects: [{ key: 'integrity', amount: -18 }, { key: 'morale', amount: -3 }],
+        outcome:
+          'Too many mis-sorts. Acting on a deepfake wire request or an MFA-reset ' +
+          'scam is how organizations lose money and access.',
+      },
+    },
+  },
+
   // ───────────────────────── Contain the Breach ─────────────────────────
   // Player orders the response steps; speed/order matters.
   contain_ransomware_steps: {
@@ -252,12 +465,21 @@ const MINIGAMES = {
  * Maps an event id → a mini-game id. Events not listed stay multiple-choice.
  */
 const EVENT_MINIGAMES = {
+  // Spot the Phish
   phish_invoice_employee: 'spot_the_phish_invoice',
   phish_safety_bulletin_gas: 'spot_the_phish_safety',
+  phish_hr_benefits_employee: 'spot_the_phish_benefits',
+  gov_deepfake_video_operator: 'spot_the_deepfake',
+  // Sort / triage
+  bec_wire_employee: 'sort_inbox_requests',
+  gov_bec_gift_card_employee: 'sort_verify_requests',
+  // Pick practices
   password_reuse_employee: 'build_password_practices',
+  credential_stuffing_operator: 'pick_credential_defenses',
+  // Order the response
   ransomware_operator: 'contain_ransomware_steps',
   ransomware_ehr_operator: 'contain_ransomware_steps',
-  bec_wire_employee: 'sort_inbox_requests',
+  zero_day_operator: 'order_zero_day_steps',
 };
 
 function miniGameIdForEvent(eventId) {
