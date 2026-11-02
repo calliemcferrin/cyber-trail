@@ -222,7 +222,7 @@ function choose(eventId,choiceId){
     (children||[]).forEach(function(c){ if(c==null) return; node.appendChild(typeof c==='string'?document.createTextNode(c):c); });
     return node;
   }
-  function render(nodes){ var app=getApp(); if(!app) return; app.textContent=''; app.classList.remove('fade'); void app.offsetWidth; app.classList.add('fade'); (Array.isArray(nodes)?nodes:[nodes]).forEach(function(n){app.appendChild(n);}); window.scrollTo(0,0); }
+  function render(nodes){ var app=getApp(); if(!app) return; app.textContent=''; app.classList.remove('fade'); void app.offsetWidth; app.classList.add('fade'); (Array.isArray(nodes)?nodes:[nodes]).forEach(function(n){ if(n!=null) app.appendChild(n); }); window.scrollTo(0,0); }
   var state={ facilityId:null, roleId:null, game:null };
 
   function titleScreen(){

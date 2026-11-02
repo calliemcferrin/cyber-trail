@@ -40,7 +40,7 @@
     app.classList.remove('fade');
     void app.offsetWidth; // reflow to restart animation
     app.classList.add('fade');
-    (Array.isArray(nodes) ? nodes : [nodes]).forEach((n) => app.appendChild(n));
+    (Array.isArray(nodes) ? nodes : [nodes]).forEach((n) => { if (n != null) app.appendChild(n); });
     window.scrollTo(0, 0);
   }
 
