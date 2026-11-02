@@ -66,6 +66,7 @@
         el('p', { class: 'eyebrow', text: '// INSERT COIN — CRITICAL INFRASTRUCTURE DIVISION' }),
         el('h1', { class: 'title', text: 'CYBER TRAIL' }),
         el('p', { class: 'subtitle', text: 'Survive the journey. Defend the grid. Learn the threats.' }),
+        el('p', { class: 'collab', text: 'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬' }),
       ]),
       el('div', { class: 'panel' }, [
         el('p', { class: 'prompt-text', text:
@@ -171,41 +172,116 @@
   // ------------------------- import terminal (mission loader) -------------------------
   // Flavor-only gate: the player types `import <facility> --<role>` to "load"
   // their mission. Guidance is baked into the terminal's usage line. Not scored.
+  // Role-specific access passwords (flavor only — do NOT affect scoring).
+  // Hints are baked into the terminal so players can solve them.
+  var LINUX_HINTS = [
+    "This operating system's kernel, first released in 1991 by Linus Torvalds, shares its creator's first name. What is it?",
+    'Its mascot is a penguin named Tux. Name this open-source OS.',
+    'Android is built on top of this open-source OS kernel. Name it.',
+  ];
+  function accessGateFor(role) {
+    if (role === 'operator') {
+      return {
+        password: 'linux',
+        caseSensitive: false,
+        hints: LINUX_HINTS.map(function (h) {
+          return 'access code hint: ' + h + ' (answer is all lowercase)';
+        }),
+      };
+    }
+    if (role === 'supervisor') {
+      return {
+        password: 'Marco',
+        caseSensitive: true,
+        hints: ['access code hint: the password is the Mascot\u2019s name, capitalized.'],
+      };
+    }
+    return null; // employee: no gate
+  }
+
   function importScreen() {
     const fac = state.facilityId;
     const role = state.roleId;
     const expected = ('import ' + fac + ' --' + role).toLowerCase();
+    const gate = accessGateFor(role);
 
     const screen = el('div', { class: 'term-screen term-import-screen' });
-    const input = el('input', { class: 'term-input', type: 'text', autocomplete: 'off',
-      spellcheck: 'false', placeholder: 'type the import command and press Enter' });
+    const input = el('input', { class: 'term-input', autocomplete: 'off',
+      spellcheck: 'false', placeholder: 'type here and press Enter' });
     const promptSpan = el('span', { class: 'term-prompt', text: 'operator@cyber-trail:~$ ' });
+
+    // phase: 'auth' (password required) or 'import'
+    let phase = gate ? 'auth' : 'import';
 
     function print(line, cls) {
       screen.appendChild(el('div', { class: 'term-line' + (cls ? ' ' + cls : '') }, [line]));
       screen.scrollTop = screen.scrollHeight;
     }
 
+    function setMasked(masked) {
+      input.type = masked ? 'password' : 'text';
+      input.value = '';
+      input.placeholder = masked ? 'enter access code and press Enter' : 'type the import command and press Enter';
+    }
+
     function boot() {
       print('cyber-trail // mission loader', 'term-ok');
+      if (gate) {
+        print('restricted: ' + role + ' access requires an access code.', 'term-dim');
+        // Show a hint (operator rotates among several; supervisor has one).
+        var hint = gate.hints[(Math.random() * gate.hints.length) | 0];
+        print(hint, 'term-dim');
+        print('—', 'term-dim');
+        promptSpan.textContent = 'auth@cyber-trail:~$ ';
+        setMasked(true);
+      } else {
+        bootImport();
+      }
+    }
+
+    function bootImport() {
       print('usage: import <facility> --<role>', 'term-dim');
       print('note: <> mark placeholders — do not type the angle brackets.', 'term-dim');
       print('target facility : ' + fac, 'term-dim');
       print('target role     : ' + role, 'term-dim');
       print('e.g.  import ' + fac + ' --' + role, 'term-dim');
       print('—', 'term-dim');
+      promptSpan.textContent = 'operator@cyber-trail:~$ ';
+      setMasked(false);
     }
 
     function normalize(s) {
       return (s || '').toLowerCase().replace(/\s+/g, ' ').trim();
     }
 
-    async function run() {
+    function checkPassword(raw) {
+      if (gate.caseSensitive) return raw === gate.password;
+      return raw.toLowerCase() === gate.password.toLowerCase();
+    }
+
+    function run() {
       const raw = input.value.trim();
       if (!raw) return;
+
+      if (phase === 'auth') {
+        print(promptSpan.textContent + '••••••'); // never echo the code itself
+        if (checkPassword(raw)) {
+          print('access granted. welcome, ' + role + '.', 'term-ok');
+          print('—', 'term-dim');
+          phase = 'import';
+          bootImport();
+          input.focus();
+        } else {
+          print('access denied — incorrect access code. try again.', 'term-dim');
+          input.value = '';
+          input.focus();
+        }
+        return;
+      }
+
+      // import phase
       print(promptSpan.textContent + raw);
       const norm = normalize(raw);
-      // Accept: "import <fac> --<role>" with flexible spacing/order of the flag.
       const ok =
         norm === expected ||
         norm === normalize('import --' + role + ' ' + fac) ||
@@ -220,7 +296,6 @@
         input.focus();
         return;
       }
-      // Success: brief simulated load, then start.
       input.disabled = true;
       print('fetching ' + fac + ' profile …', 'term-out');
       setTimeout(() => print('loading ' + role + ' toolkit …', 'term-out'), 350);

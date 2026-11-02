@@ -90,7 +90,8 @@ ${css}
   </noscript>
 </main>
 <footer class="footer">
-  <span class="blink">&#9679;</span> CYBER TRAIL v0.1 &mdash; standalone demo (runs offline in your browser).
+  <span class="blink">&#9679;</span> CYBER TRAIL v0.1 &mdash; in collaboration with the
+  Marshall University Institute for Cyber Security &middot; mascot: Marco the Bison.
   All "attacks" are simulated for learning.
 </footer>
 
@@ -219,7 +220,8 @@ function choose(eventId,choiceId){
       el('div',{class:'center'},[
         el('p',{class:'eyebrow',text:'// INSERT COIN — CRITICAL INFRASTRUCTURE DIVISION'}),
         el('h1',{class:'title',text:'CYBER TRAIL'}),
-        el('p',{class:'subtitle',text:'Survive the journey. Defend the grid. Learn the threats.'})
+        el('p',{class:'subtitle',text:'Survive the journey. Defend the grid. Learn the threats.'}),
+        el('p',{class:'collab',text:'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬'})
       ]),
       el('div',{class:'panel'},[
         el('p',{class:'prompt-text',text:'The year is now. You are responsible for guiding a piece of critical infrastructure through a gauntlet of cyber threats. Like the pioneers of old, your journey is full of hazards — but yours are phishing emails, ransomware, and insider threats instead of dysentery and broken axles. Choose your facility. Choose your role. Make smart decisions. Survive.'}),
@@ -259,16 +261,46 @@ function choose(eventId,choiceId){
   }
   function startJourney(){ state.game=startGame(state.facilityId,state.roleId); journeyScreen(); }
   function beginGame(){ if(isMobile()) startJourney(); else importScreen(); }
+  var LINUX_HINTS=[
+    "This operating system's kernel, first released in 1991 by Linus Torvalds, shares its creator's first name. What is it?",
+    'Its mascot is a penguin named Tux. Name this open-source OS.',
+    'Android is built on top of this open-source OS kernel. Name it.'
+  ];
+  function accessGateFor(role){
+    if(role==='operator') return { password:'linux', caseSensitive:false, hints:LINUX_HINTS.map(function(h){return 'access code hint: '+h+' (answer is all lowercase)';}) };
+    if(role==='supervisor') return { password:'Marco', caseSensitive:true, hints:['access code hint: the password is the Mascot\\u2019s name, capitalized.'] };
+    return null;
+  }
   function importScreen(){
     var fac=state.facilityId, role=state.roleId;
     var expected=('import '+fac+' --'+role).toLowerCase();
+    var gate=accessGateFor(role);
     var screen=el('div',{class:'term-screen term-import-screen'});
-    var input=el('input',{class:'term-input',type:'text',autocomplete:'off',spellcheck:'false',placeholder:'type the import command and press Enter'});
+    var input=el('input',{class:'term-input',autocomplete:'off',spellcheck:'false',placeholder:'type here and press Enter'});
     var promptSpan=el('span',{class:'term-prompt',text:'operator@cyber-trail:~\$ '});
+    var phase=gate?'auth':'import';
     function print(line,cls){ screen.appendChild(el('div',{class:'term-line'+(cls?' '+cls:'')},[line])); screen.scrollTop=screen.scrollHeight; }
+    function setMasked(m){ input.type=m?'password':'text'; input.value=''; input.placeholder=m?'enter access code and press Enter':'type the import command and press Enter'; }
     function norm(s){ return (s||'').toLowerCase().replace(/\\s+/g,' ').trim(); }
+    function checkPassword(raw){ return gate.caseSensitive?(raw===gate.password):(raw.toLowerCase()===gate.password.toLowerCase()); }
+    function bootImport(){
+      print('usage: import <facility> --<role>','term-dim');
+      print('note: <> mark placeholders — do not type the angle brackets.','term-dim');
+      print('target facility : '+fac,'term-dim');
+      print('target role     : '+role,'term-dim');
+      print('e.g.  import '+fac+' --'+role,'term-dim');
+      print('—','term-dim');
+      promptSpan.textContent='operator@cyber-trail:~\$ ';
+      setMasked(false);
+    }
     function run(){
       var raw=input.value.trim(); if(!raw) return;
+      if(phase==='auth'){
+        print(promptSpan.textContent+'••••••');
+        if(checkPassword(raw)){ print('access granted. welcome, '+role+'.','term-ok'); print('—','term-dim'); phase='import'; bootImport(); input.focus(); }
+        else { print('access denied — incorrect access code. try again.','term-dim'); input.value=''; input.focus(); }
+        return;
+      }
       print(promptSpan.textContent+raw);
       var n=norm(raw);
       var ok=(n===expected)||(n===norm('import --'+role+' '+fac))||(n===norm('import '+fac+' -'+role));
@@ -288,12 +320,15 @@ function choose(eventId,choiceId){
       el('div',{class:'btn-row'},[ el('button',{class:'btn secondary',onClick:roleScreen,text:'◀ Back'}) ])
     ]);
     print('cyber-trail // mission loader','term-ok');
-    print('usage: import <facility> --<role>','term-dim');
-    print('note: <> mark placeholders — do not type the angle brackets.','term-dim');
-    print('target facility : '+fac,'term-dim');
-    print('target role     : '+role,'term-dim');
-    print('e.g.  import '+fac+' --'+role,'term-dim');
-    print('—','term-dim');
+    if(gate){
+      print('restricted: '+role+' access requires an access code.','term-dim');
+      print(gate.hints[(Math.random()*gate.hints.length)|0],'term-dim');
+      print('—','term-dim');
+      promptSpan.textContent='auth@cyber-trail:~\$ ';
+      setMasked(true);
+    } else {
+      bootImport();
+    }
     input.focus();
   }
 

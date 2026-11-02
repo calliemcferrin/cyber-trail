@@ -142,6 +142,13 @@ body::before {
   text-transform: uppercase;
   letter-spacing: 0.25em;
 }
+.collab {
+  color: var(--blue);
+  font-size: 0.92rem;
+  margin: 0.2rem auto 1.4rem;
+  max-width: 52ch;
+  line-height: 1.5;
+}
 .prompt-text {
   font-size: 1.1rem;
   line-height: 1.7;
