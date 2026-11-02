@@ -14,10 +14,12 @@ const path = require('node:path');
 
 const css = fs.readFileSync(path.join(__dirname, 'public', 'styles.css'), 'utf8');
 const { FACILITIES, ROLES, EVENTS } = require('./content.js');
+const { GLOSSARY } = require('./glossary.js');
 
 const facilities = JSON.stringify(Object.values(FACILITIES));
 const roles = JSON.stringify(Object.values(ROLES));
 const events = JSON.stringify(EVENTS);
+const glossary = JSON.stringify(GLOSSARY);
 
 const html = `<!DOCTYPE html>
 <html lang="en">
@@ -55,6 +57,28 @@ ${css}
 var FACILITIES = ${facilities};
 var ROLES = ${roles};
 var EVENTS = ${events};
+var GLOSSARY = ${glossary};
+
+// ====== Glossary detection ("Beyond the acronym") ======
+var GLOSSARY_TERMS = Object.keys(GLOSSARY);
+function glossaryFor(ev){
+  var parts=[ev.prompt];
+  for(var i=0;i<ev.choices.length;i++){ parts.push(ev.choices[i].label); parts.push(ev.choices[i].outcome); }
+  var text=parts.join(' \\u241F ');
+  var found=[];
+  for(var t=0;t<GLOSSARY_TERMS.length;t++){
+    var term=GLOSSARY_TERMS[t];
+    var esc=term.replace(/[.*+?^\${}()|[\\]\\\\]/g,'\\\\$&');
+    var re=new RegExp('(^|[^A-Za-z0-9])'+esc+'s?([^A-Za-z0-9]|\$)');
+    if(re.test(text)) found.push({ term:term, definition:GLOSSARY[term] });
+  }
+  found.sort(function(a,b){ return a.term<b.term?-1:(a.term>b.term?1:0); });
+  return found;
+}
+// Build glossary from arbitrary text blocks (for the debrief).
+function glossaryForText(blocks){
+  return glossaryFor({ prompt: blocks.join(' \\u241F '), choices: [] });
+}
 
 // ====== Browser-side engine (ported from server engine.js) ======
 // DEMO ONLY: in the real game this logic lives on the server (trust boundary).
@@ -73,6 +97,7 @@ function computeScore(r){
 function view(r){
   var pool=eventsFor(r.facilityId,r.roleId);
   var ev=r.currentEventId?findEvent(r.currentEventId,pool):null;
+  if(ev){ var copy={}; for(var k in ev) copy[k]=ev[k]; copy.glossary=glossaryFor(ev); ev=copy; }
   return { sessionId:'local', facilityId:r.facilityId, roleId:r.roleId, stage:r.stage,
     totalStages:r.totalStages, resources:r.resources, status:r.status, score:computeScore(r),
     currentEvent:ev, lastOutcome:r.lastOutcome };
@@ -93,7 +118,8 @@ function choose(eventId,choiceId){
   var ev=findEvent(run.currentEventId,pool);
   var ch=ev.choices.filter(function(c){return c.id===choiceId;})[0];
   for(var i=0;i<ch.effects.length;i++){ var eff=ch.effects[i]; run.resources[eff.key]=clamp(run.resources[eff.key]+eff.amount); }
-  run.lastOutcome={ choiceId:ch.id, outcome:ch.outcome, isRecommended:ch.isRecommended, learning:ev.learning, eventTitle:ev.title };
+  var debriefGloss=glossaryForText([ch.outcome, ev.learning.summary, ev.learning.realWorldExample, ev.learning.preventiveMeasures.join(' ')]);
+  run.lastOutcome={ choiceId:ch.id, outcome:ch.outcome, isRecommended:ch.isRecommended, learning:ev.learning, eventTitle:ev.title, glossary:debriefGloss };
   run.stage+=1;
   if(run.resources.integrity<=0||run.resources.uptime<=0){ run.status='lost'; run.currentEventId=null; }
   else if(run.stage>=run.totalStages){ run.status='won'; run.currentEventId=null; }
@@ -165,6 +191,16 @@ function choose(eventId,choiceId){
   }
   function hud(g){ return el('div',{class:'hud'},[ meter('Integrity',g.resources.integrity), meter('Uptime',g.resources.uptime), meter('Budget',g.resources.budget), meter('Morale',g.resources.morale) ]); }
 
+  function glossaryBlock(terms){
+    if(!terms||!terms.length) return null;
+    var dl=el('dl',{class:'glossary-list'});
+    terms.forEach(function(t){ dl.appendChild(el('dt',{text:t.term})); dl.appendChild(el('dd',{text:t.definition})); });
+    return el('details',{class:'glossary'},[
+      el('summary',{text:'ⓘ Beyond the acronym ('+terms.length+')'}),
+      dl
+    ]);
+  }
+
   function journeyScreen(){
     var g=state.game; if(g.status!=='in_progress'||!g.currentEvent) return endScreen();
     var ev=g.currentEvent; var keys=['A','B','C','D'];
@@ -179,7 +215,8 @@ function choose(eventId,choiceId){
           return el('button',{class:'choice',onClick:function(){ state.game=choose(ev.id,c.id); debriefScreen(); }},[
             el('span',{class:'key',text:(keys[i]||'•')+'.'}), c.label
           ]);
-        }))
+        })),
+        glossaryBlock(ev.glossary)
       ])
     ]);
   }
@@ -198,7 +235,8 @@ function choose(eventId,choiceId){
         el('p',{class:'real-world',text:'⌁ Real world: '+L.realWorldExample}),
         el('p',{class:'eyebrow',text:'// HOW TO PREVENT IT'}),
         el('ul',{class:'learn-list'}, L.preventiveMeasures.map(function(m){return el('li',{text:m});})),
-        L.mitreAttck?el('p',{class:'meta',text:'MITRE ATT&CK: '+L.mitreAttck}):null
+        L.mitreAttck?el('p',{class:'meta',text:'MITRE ATT&CK: '+L.mitreAttck}):null,
+        glossaryBlock(o.glossary)
       ])
     ];
     var next=g.status==='in_progress'

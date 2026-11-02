@@ -262,6 +262,48 @@ body::before {
 }
 .debrief hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 1.1rem 0; }
 
+/* ---------------------------- glossary ("Beyond the acronym") ---------------------------- */
+.glossary {
+  margin-top: 1.1rem;
+  border: 1px solid rgba(77, 181, 255, 0.35);
+  background: rgba(10, 16, 24, 0.6);
+  border-radius: 3px;
+}
+.glossary > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.6rem 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--blue);
+  user-select: none;
+}
+.glossary > summary::-webkit-details-marker { display: none; }
+.glossary > summary::after {
+  content: " ▸";
+  color: var(--blue);
+}
+.glossary[open] > summary::after { content: " ▾"; }
+.glossary > summary:hover { color: var(--green); }
+.glossary-list {
+  margin: 0;
+  padding: 0.2rem 0.9rem 0.9rem;
+  border-top: 1px solid rgba(77, 181, 255, 0.2);
+}
+.glossary-list dt {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--green);
+  margin-top: 0.7rem;
+}
+.glossary-list dd {
+  margin: 0.15rem 0 0;
+  color: var(--dim);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
 /* ---------------------------- end screens ---------------------------- */
 .endbanner { font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 900; margin: 0.5rem 0; }
 .endbanner.win { color: var(--green); text-shadow: 0 0 10px var(--green), 0 0 26px var(--green); }

@@ -169,6 +169,24 @@
     ]);
   }
 
+  // ------------------------- glossary ("Beyond the acronym") -------------------------
+  // Optional, collapsed-by-default reference so players who know the jargon
+  // aren't forced to read definitions, while learners can expand them.
+  function glossaryBlock(terms) {
+    if (!terms || !terms.length) return null;
+    const details = el('details', { class: 'glossary' }, [
+      el('summary', { text: 'ⓘ Beyond the acronym (' + terms.length + ')' }),
+      el('dl', { class: 'glossary-list' },
+        terms.reduce((nodes, t) => {
+          nodes.push(el('dt', { text: t.term }));
+          nodes.push(el('dd', { text: t.definition }));
+          return nodes;
+        }, []),
+      ),
+    ]);
+    return details;
+  }
+
   // ------------------------- journey / event -------------------------
   function journeyScreen() {
     const g = state.game;
@@ -193,6 +211,7 @@
             ]),
           ),
         ),
+        glossaryBlock(ev.glossary),
       ]),
     ]);
   }
@@ -234,6 +253,7 @@
           L.preventiveMeasures.map((m) => el('li', { text: m })),
         ),
         L.mitreAttck ? el('p', { class: 'meta', text: 'MITRE ATT&CK: ' + L.mitreAttck }) : null,
+        glossaryBlock(o.glossary),
       ]),
     ];
 

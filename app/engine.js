@@ -9,6 +9,7 @@
  */
 const { randomUUID } = require('node:crypto');
 const { FACILITIES, ROLES, eventsFor } = require('./content.js');
+const { glossaryFor } = require('./glossary.js');
 
 const clamp = (n, min = 0, max = 100) => Math.max(min, Math.min(max, n));
 
@@ -56,9 +57,15 @@ function computeScore(run) {
 /** Public, client-safe projection of a run. Private deck/state stays server-side. */
 function toView(run) {
   const pool = eventsFor(run.facilityId, run.roleId);
-  const currentEvent = run.currentEventId
+  let currentEvent = run.currentEventId
     ? findEvent(run.currentEventId, pool) || null
     : null;
+  if (currentEvent) {
+    // Attach the "Beyond the acronym" glossary for terms in this event.
+    currentEvent = Object.assign({}, currentEvent, {
+      glossary: glossaryFor(currentEvent),
+    });
+  }
   return {
     sessionId: run.sessionId,
     facilityId: run.facilityId,
@@ -124,12 +131,26 @@ function choose(sessionId, { eventId, choiceId }) {
   for (const eff of choice.effects) {
     run.resources[eff.key] = clamp(run.resources[eff.key] + eff.amount);
   }
+  // Glossary for the debrief: terms appearing in the outcome + learning text.
+  const debriefText = {
+    prompt: choice.outcome,
+    choices: [
+      {
+        label: event.learning.summary,
+        outcome:
+          event.learning.realWorldExample +
+          ' ' +
+          event.learning.preventiveMeasures.join(' '),
+      },
+    ],
+  };
   run.lastOutcome = {
     choiceId: choice.id,
     outcome: choice.outcome,
     isRecommended: choice.isRecommended,
     learning: event.learning,
     eventTitle: event.title,
+    glossary: glossaryFor(debriefText),
   };
   run.stage += 1;
 
