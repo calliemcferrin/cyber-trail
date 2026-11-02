@@ -13,6 +13,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const css = fs.readFileSync(path.join(__dirname, 'public', 'styles.css'), 'utf8');
+const matrixJs = fs.readFileSync(path.join(__dirname, 'public', 'matrix.js'), 'utf8');
 const { FACILITIES, ROLES, EVENTS } = require('./content.js');
 const { GLOSSARY } = require('./glossary.js');
 const { MINIGAMES, EVENT_MINIGAMES } = require('./minigames.js');
@@ -38,6 +39,7 @@ ${css}
 </style>
 </head>
 <body>
+<canvas id="matrix" aria-hidden="true"></canvas>
 <div class="crt" aria-hidden="true"></div>
 <div class="scanlines" aria-hidden="true"></div>
 <main id="app" class="screen">
@@ -56,6 +58,10 @@ ${css}
   <span class="blink">&#9679;</span> CYBER TRAIL v0.1 &mdash; standalone demo (runs offline in your browser).
   All "attacks" are simulated for learning.
 </footer>
+
+<script>
+${matrixJs}
+</script>
 
 <script>
 'use strict';

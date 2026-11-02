@@ -41,6 +41,16 @@ html, body {
   overflow-x: hidden;
 }
 
+/* Slow falling binary/hex "digital rain" behind everything. */
+#matrix {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  pointer-events: none;
+  opacity: 0.5; /* keep it subtle so UI text stays readable */
+}
+
 /* Glowing perspective grid + vignette backdrop */
 body::before {
   content: "";
