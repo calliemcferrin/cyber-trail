@@ -14,13 +14,20 @@ const http = require('node:http');
 const https = require('node:https');
 const fs = require('node:fs');
 const path = require('node:path');
-const { startGame, choose, getView, GameEngineError } = require('./engine.js');
+const {
+  startGame,
+  choose,
+  submitMiniGame,
+  getView,
+  GameEngineError,
+} = require('./engine.js');
 const { FACILITIES, ROLES } = require('./content.js');
 const {
   isUuid,
   parseJson,
   validateStart,
   validateChoose,
+  validateMiniGame,
 } = require('./validate.js');
 
 const PORT = Number(process.env.PORT) || 4000;
@@ -182,17 +189,17 @@ const requestHandler = async (req, res) => {
       }
 
       // /api/game/:sessionId  and  /api/game/:sessionId/choose
-      const gameMatch = route.match(/^\/api\/game\/([^/]+)(\/choose)?$/);
+      const gameMatch = route.match(/^\/api\/game\/([^/]+)(\/choose|\/minigame)?$/);
       if (gameMatch) {
         const sessionId = gameMatch[1];
-        const isChoose = Boolean(gameMatch[2]);
+        const action = gameMatch[2]; // undefined | '/choose' | '/minigame'
         if (!isUuid(sessionId)) {
           return sendError(res, 400, 'Invalid request.', 'validation');
         }
-        if (method === 'GET' && !isChoose) {
+        if (method === 'GET' && !action) {
           return sendJson(res, 200, getView(sessionId));
         }
-        if (method === 'POST' && isChoose) {
+        if (method === 'POST' && action === '/choose') {
           const raw = await readBody(req, res);
           if (raw === null) return; // response already sent (too large / error)
           const parsed = parseJson(raw);
@@ -200,6 +207,15 @@ const requestHandler = async (req, res) => {
           const v = validateChoose(parsed.value);
           if (!v.ok) return sendError(res, 400, 'Invalid request.', 'validation');
           return sendJson(res, 200, choose(sessionId, v.value));
+        }
+        if (method === 'POST' && action === '/minigame') {
+          const raw = await readBody(req, res);
+          if (raw === null) return; // response already sent (too large / error)
+          const parsed = parseJson(raw);
+          if (!parsed.ok) return sendError(res, 400, 'Invalid request.', 'validation');
+          const v = validateMiniGame(parsed.value);
+          if (!v.ok) return sendError(res, 400, 'Invalid request.', 'validation');
+          return sendJson(res, 200, submitMiniGame(sessionId, v.value));
         }
       }
 

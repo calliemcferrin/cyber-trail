@@ -304,6 +304,64 @@ body::before {
   line-height: 1.55;
 }
 
+/* ---------------------------- mini-games ---------------------------- */
+.minigame { margin-top: 0.5rem; }
+.mg-instructions { color: var(--green); font-size: 1rem; margin: 0 0 1rem; }
+.mg-sublabel { color: var(--dim); font-family: var(--font-mono); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; margin: 0.9rem 0 0.4rem; }
+.mg-actions { margin-top: 1.3rem; }
+
+/* spot the phish */
+.mg-email { border: 1px solid rgba(77,181,255,0.35); background: rgba(8,12,20,0.7); padding: 0.9rem 1rem; }
+.mg-email-head { border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 0.6rem; margin-bottom: 0.7rem; font-size: 0.95rem; }
+.mg-label { color: var(--dim); font-family: var(--font-mono); }
+.mg-tok { color: var(--text); }
+.mg-tokens { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.mg-token {
+  font: inherit; font-size: 0.95rem; cursor: pointer;
+  background: rgba(20,26,38,0.9); color: var(--text);
+  border: 1px dashed rgba(174,188,198,0.5); border-radius: 3px;
+  padding: 0.4rem 0.7rem; transition: all 0.12s;
+}
+.mg-token:hover { border-color: var(--blue); }
+.mg-token.picked { border-style: solid; border-color: var(--green); background: rgba(91,255,122,0.14); color: #fff; box-shadow: 0 0 10px rgba(91,255,122,0.3); }
+
+/* pick practices */
+.mg-options { display: flex; flex-direction: column; gap: 0.5rem; }
+.mg-option {
+  text-align: left; font: inherit; font-size: 1rem; cursor: pointer;
+  background: rgba(12,17,28,0.92); color: var(--text);
+  border: 1px solid rgba(174,188,198,0.35); padding: 0.75rem 0.9rem; transition: all 0.12s;
+}
+.mg-option:hover { border-color: var(--blue); }
+.mg-option.picked { border-color: var(--green); background: rgba(91,255,122,0.12); }
+.mg-check { color: var(--green); font-family: var(--font-mono); }
+
+/* sort messages */
+.mg-sort { display: flex; flex-direction: column; gap: 0.8rem; }
+.mg-sort-row { border: 1px solid rgba(77,181,255,0.25); padding: 0.7rem 0.8rem; background: rgba(10,16,24,0.6); }
+.mg-sort-text { margin-bottom: 0.5rem; }
+.mg-bins { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.mg-bin {
+  font: inherit; font-size: 0.85rem; cursor: pointer; flex: 1 1 auto;
+  background: transparent; color: var(--dim);
+  border: 1px solid rgba(174,188,198,0.4); padding: 0.45rem 0.6rem; transition: all 0.12s;
+}
+.mg-bin:hover { border-color: var(--blue); color: var(--text); }
+.mg-bin.sel { border-color: var(--green); color: #fff; background: rgba(91,255,122,0.14); box-shadow: 0 0 8px rgba(91,255,122,0.25); }
+
+/* order steps */
+.mg-order-chosen { display: flex; flex-direction: column; gap: 0.35rem; min-height: 1rem; }
+.mg-order-item { background: rgba(91,255,122,0.1); border-left: 3px solid var(--green); padding: 0.5rem 0.7rem; }
+.mg-order-num { color: var(--green); font-family: var(--font-mono); font-weight: 700; }
+.mg-order-pool { display: flex; flex-direction: column; gap: 0.4rem; }
+.mg-order-btn {
+  text-align: left; font: inherit; font-size: 0.98rem; cursor: pointer;
+  background: rgba(12,17,28,0.92); color: var(--text);
+  border: 1px solid rgba(77,181,255,0.35); padding: 0.6rem 0.8rem; transition: all 0.12s;
+}
+.mg-order-btn:hover { border-color: var(--green); transform: translateX(3px); }
+.badge.no { } /* fail band reuses .no */
+
 /* ---------------------------- end screens ---------------------------- */
 .endbanner { font-size: clamp(2rem, 6vw, 3.4rem); font-weight: 900; margin: 0.5rem 0; }
 .endbanner.win { color: var(--green); text-shadow: 0 0 10px var(--green), 0 0 26px var(--green); }

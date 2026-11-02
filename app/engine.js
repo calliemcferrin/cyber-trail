@@ -10,6 +10,12 @@
 const { randomUUID } = require('node:crypto');
 const { FACILITIES, ROLES, eventsFor } = require('./content.js');
 const { glossaryFor } = require('./glossary.js');
+const {
+  miniGameIdForEvent,
+  getMiniGame,
+  publicMiniGame,
+  scoreMiniGame,
+} = require('./minigames.js');
 
 const clamp = (n, min = 0, max = 100) => Math.max(min, Math.min(max, n));
 
@@ -62,9 +68,15 @@ function toView(run) {
     : null;
   if (currentEvent) {
     // Attach the "Beyond the acronym" glossary for terms in this event.
-    currentEvent = Object.assign({}, currentEvent, {
-      glossary: glossaryFor(currentEvent),
-    });
+    const extra = { glossary: glossaryFor(currentEvent) };
+    // If this event uses a mini-game, attach the client-safe version (no
+    // answer key). The event still carries its choices as a fallback.
+    const mgId = miniGameIdForEvent(currentEvent.id);
+    const mgDef = mgId ? getMiniGame(mgId) : null;
+    if (mgDef) {
+      extra.minigame = publicMiniGame(mgId, mgDef);
+    }
+    currentEvent = Object.assign({}, currentEvent, extra);
   }
   return {
     sessionId: run.sessionId,
@@ -152,8 +164,14 @@ function choose(sessionId, { eventId, choiceId }) {
     eventTitle: event.title,
     glossary: glossaryFor(debriefText),
   };
-  run.stage += 1;
 
+  advanceStage(run);
+  return toView(run);
+}
+
+/** Advance the run one stage and evaluate win/lose. Shared by choose + minigame. */
+function advanceStage(run) {
+  run.stage += 1;
   if (run.resources.integrity <= 0 || run.resources.uptime <= 0) {
     run.status = 'lost';
     run.currentEventId = null;
@@ -165,6 +183,65 @@ function choose(sessionId, { eventId, choiceId }) {
     if (!run.currentEventId) run.status = 'won';
   }
   run.updatedAt = Date.now();
+}
+
+/**
+ * Resolve a mini-game event. The client submits its raw result (or skipped);
+ * the server grades it against the hidden answer key, applies the graded
+ * resource deltas, and produces the debrief. Trust boundary: the client never
+ * sees the answer key and cannot set its own band.
+ */
+function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
+  const run = runs.get(sessionId);
+  if (!run) throw new GameEngineError('Session not found.', 'no_session');
+  if (run.status !== 'in_progress') {
+    throw new GameEngineError('This run is already over.', 'run_over');
+  }
+  if (!run.currentEventId || run.currentEventId !== eventId) {
+    throw new GameEngineError('Event mismatch.', 'event_mismatch');
+  }
+  // The event must actually use this mini-game.
+  if (miniGameIdForEvent(eventId) !== minigameId) {
+    throw new GameEngineError('Mini-game mismatch.', 'minigame_mismatch');
+  }
+  const def = getMiniGame(minigameId);
+  if (!def) throw new GameEngineError('Mini-game not found.', 'minigame_not_found');
+
+  const pool = eventsFor(run.facilityId, run.roleId);
+  const event = findEvent(run.currentEventId, pool);
+  if (!event) throw new GameEngineError('Event not found.', 'event_not_found');
+
+  const { band } = scoreMiniGame(def, result, Boolean(skipped));
+  const graded = def.grades[band];
+
+  for (const eff of graded.effects) {
+    run.resources[eff.key] = clamp(run.resources[eff.key] + eff.amount);
+  }
+
+  const debriefText = {
+    prompt: graded.outcome,
+    choices: [
+      {
+        label: event.learning.summary,
+        outcome:
+          event.learning.realWorldExample +
+          ' ' +
+          event.learning.preventiveMeasures.join(' '),
+      },
+    ],
+  };
+  run.lastOutcome = {
+    choiceId: 'minigame:' + minigameId,
+    outcome: graded.outcome,
+    isRecommended: band === 'perfect' || band === 'good',
+    band,
+    skipped: Boolean(skipped),
+    learning: event.learning,
+    eventTitle: event.title,
+    glossary: glossaryFor(debriefText),
+  };
+
+  advanceStage(run);
   return toView(run);
 }
 
@@ -174,4 +251,10 @@ function getView(sessionId) {
   return toView(run);
 }
 
-module.exports = { startGame, choose, getView, GameEngineError };
+module.exports = {
+  startGame,
+  choose,
+  submitMiniGame,
+  getView,
+  GameEngineError,
+};

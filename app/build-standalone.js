@@ -15,11 +15,17 @@ const path = require('node:path');
 const css = fs.readFileSync(path.join(__dirname, 'public', 'styles.css'), 'utf8');
 const { FACILITIES, ROLES, EVENTS } = require('./content.js');
 const { GLOSSARY } = require('./glossary.js');
+const { MINIGAMES, EVENT_MINIGAMES } = require('./minigames.js');
 
 const facilities = JSON.stringify(Object.values(FACILITIES));
 const roles = JSON.stringify(Object.values(ROLES));
 const events = JSON.stringify(EVENTS);
 const glossary = JSON.stringify(GLOSSARY);
+// NOTE: the standalone demo is offline and client-only, so (unlike the real
+// server) the answer keys necessarily ship to the browser. That's acceptable
+// for a demo; the real game keeps grading server-side. See SECURITY.md.
+const minigames = JSON.stringify(MINIGAMES);
+const eventMinigames = JSON.stringify(EVENT_MINIGAMES);
 
 const html = `<!DOCTYPE html>
 <html lang="en">
@@ -80,6 +86,59 @@ function glossaryForText(blocks){
   return glossaryFor({ prompt: blocks.join(' \\u241F '), choices: [] });
 }
 
+// ====== Mini-games (ported from minigames.js) ======
+var MINIGAMES = ${minigames};
+var EVENT_MINIGAMES = ${eventMinigames};
+function miniGameIdForEvent(id){ return EVENT_MINIGAMES[id] || null; }
+function publicMiniGame(id){ var d=MINIGAMES[id]; return { id:id, type:d.type, config:d.config, attackType:d.attackType }; }
+function clampPct(n){ return Math.max(0, Math.min(1, n)); }
+function bandFromScore(s){ if(s>=0.999) return 'perfect'; if(s>=0.6) return 'good'; return 'fail'; }
+function scoreMiniGame(def, result, skipped){
+  if(skipped) return 'fail';
+  var t=def.type;
+  if(t==='spot_the_phish'){
+    var correct=def.answer.suspicious, all=def.config.tokens.map(function(x){return x.id;});
+    var benign=all.filter(function(id){return correct.indexOf(id)<0;});
+    var picked=(result&&result.selected)||[];
+    var hits=correct.filter(function(id){return picked.indexOf(id)>=0;}).length;
+    var fa=picked.filter(function(id){return benign.indexOf(id)>=0;}).length;
+    return bandFromScore(clampPct(hits/correct.length - 0.25*fa));
+  }
+  if(t==='sort_messages'){
+    var map=def.answer.map, ids=Object.keys(map), assign=(result&&result.assignments)||{};
+    var right=ids.filter(function(id){return assign[id]===map[id];}).length;
+    return bandFromScore(clampPct(right/ids.length));
+  }
+  if(t==='pick_practices'){
+    var good=def.answer.good, bad=def.answer.bad, total=good.length+bad.length;
+    var picked=(result&&result.selected)||[];
+    var c=0; good.forEach(function(id){if(picked.indexOf(id)>=0)c++;}); bad.forEach(function(id){if(picked.indexOf(id)<0)c++;});
+    return bandFromScore(clampPct(c/total));
+  }
+  if(t==='order_steps'){
+    var order=def.answer.order, sub=(result&&result.order)||[];
+    var rp=0; for(var i=0;i<order.length;i++){ if(sub[i]===order[i]) rp++; }
+    var score=rp/order.length; if(sub[0]!==order[0]) score=Math.min(score,0.5);
+    return bandFromScore(clampPct(score));
+  }
+  return 'fail';
+}
+function submitMiniGameLocal(eventId, minigameId, result, skipped){
+  var def=MINIGAMES[minigameId];
+  var pool=eventsFor(run.facilityId,run.roleId);
+  var ev=findEvent(run.currentEventId,pool);
+  var band=scoreMiniGame(def, result, skipped);
+  var graded=def.grades[band];
+  for(var i=0;i<graded.effects.length;i++){ var eff=graded.effects[i]; run.resources[eff.key]=clamp(run.resources[eff.key]+eff.amount); }
+  var gloss=glossaryForText([graded.outcome, ev.learning.summary, ev.learning.realWorldExample, ev.learning.preventiveMeasures.join(' ')]);
+  run.lastOutcome={ choiceId:'minigame:'+minigameId, outcome:graded.outcome, isRecommended:(band==='perfect'||band==='good'), band:band, skipped:!!skipped, learning:ev.learning, eventTitle:ev.title, glossary:gloss };
+  run.stage+=1;
+  if(run.resources.integrity<=0||run.resources.uptime<=0){ run.status='lost'; run.currentEventId=null; }
+  else if(run.stage>=run.totalStages){ run.status='won'; run.currentEventId=null; }
+  else { run.currentEventId=run.deck[run.stage]||null; if(!run.currentEventId) run.status='won'; }
+  return view(run);
+}
+
 // ====== Browser-side engine (ported from server engine.js) ======
 // DEMO ONLY: in the real game this logic lives on the server (trust boundary).
 function clamp(n){ return Math.max(0, Math.min(100, n)); }
@@ -97,7 +156,7 @@ function computeScore(r){
 function view(r){
   var pool=eventsFor(r.facilityId,r.roleId);
   var ev=r.currentEventId?findEvent(r.currentEventId,pool):null;
-  if(ev){ var copy={}; for(var k in ev) copy[k]=ev[k]; copy.glossary=glossaryFor(ev); ev=copy; }
+  if(ev){ var copy={}; for(var k in ev) copy[k]=ev[k]; copy.glossary=glossaryFor(ev); var mgId=miniGameIdForEvent(ev.id); if(mgId) copy.minigame=publicMiniGame(mgId); ev=copy; }
   return { sessionId:'local', facilityId:r.facilityId, roleId:r.roleId, stage:r.stage,
     totalStages:r.totalStages, resources:r.resources, status:r.status, score:computeScore(r),
     currentEvent:ev, lastOutcome:r.lastOutcome };
@@ -208,10 +267,10 @@ function choose(eventId,choiceId){
       el('div',{class:'stage-bar',text:'◢ STAGE '+(g.stage+1)+' / '+g.totalStages+'   ·   SCORE '+g.score}),
       hud(g),
       el('div',{class:'panel'},[
-        el('p',{class:'eyebrow',text:'// INCOMING EVENT'}),
+        el('p',{class:'eyebrow',text:ev.minigame?'// INTERACTIVE CHALLENGE':'// INCOMING EVENT'}),
         el('h2',{class:'subtitle',text:ev.title}),
         el('p',{class:'prompt-text',text:ev.prompt}),
-        el('div',{}, ev.choices.map(function(c,i){
+        ev.minigame ? miniGameBlock(ev) : el('div',{}, ev.choices.map(function(c,i){
           return el('button',{class:'choice',onClick:function(){ state.game=choose(ev.id,c.id); debriefScreen(); }},[
             el('span',{class:'key',text:(keys[i]||'•')+'.'}), c.label
           ]);
@@ -220,13 +279,76 @@ function choose(eventId,choiceId){
       ])
     ]);
   }
+
+  function doSubmitMiniGame(ev, result, skipped){
+    state.game = submitMiniGameLocal(ev.id, ev.minigame.id, result, skipped);
+    debriefScreen();
+  }
+  function mgButtons(ev, collect){
+    return el('div',{class:'btn-row mg-actions'},[
+      el('button',{class:'btn',onClick:function(){ doSubmitMiniGame(ev, collect(), false); },text:'✓ Submit'}),
+      el('button',{class:'btn secondary',onClick:function(){ if(window.confirm('Skip this challenge? It will be scored as a failure and you will take the full resource loss for it.')) doSubmitMiniGame(ev, {}, true); },text:'⤼ Skip (take the loss)'})
+    ]);
+  }
+  function miniGameBlock(ev){
+    var mg=ev.minigame, cfg=mg.config;
+    var wrap=el('div',{class:'minigame'},[ el('p',{class:'mg-instructions',text:cfg.instructions}) ]);
+    var st={ selected:{}, assignments:{} };
+    if(mg.type==='spot_the_phish'){
+      wrap.appendChild(el('div',{class:'mg-email'},[
+        el('div',{class:'mg-email-head'},[
+          el('div',{},[ el('span',{class:'mg-label',text:'From: '}), el('span',{class:'mg-tok',text:cfg.from}) ]),
+          el('div',{},[ el('span',{class:'mg-label',text:'Subject: '}), el('span',{class:'mg-tok',text:cfg.subject}) ])
+        ]),
+        el('div',{class:'mg-tokens'}, cfg.tokens.map(function(t){
+          var b=el('button',{class:'mg-token',onClick:function(){ st.selected[t.id]=!st.selected[t.id]; b.classList.toggle('picked',!!st.selected[t.id]); }},[t.text]);
+          return b;
+        }))
+      ]));
+      wrap.appendChild(mgButtons(ev,function(){ return { selected:Object.keys(st.selected).filter(function(k){return st.selected[k];}) }; }));
+    } else if(mg.type==='pick_practices'){
+      wrap.appendChild(el('div',{class:'mg-options'}, cfg.options.map(function(o){
+        var chk=el('span',{class:'mg-check',text:'◻ '});
+        var b=el('button',{class:'mg-option',onClick:function(){ st.selected[o.id]=!st.selected[o.id]; b.classList.toggle('picked',!!st.selected[o.id]); chk.textContent=st.selected[o.id]?'☑ ':'◻ '; }},[chk,o.text]);
+        return b;
+      })));
+      wrap.appendChild(mgButtons(ev,function(){ return { selected:Object.keys(st.selected).filter(function(k){return st.selected[k];}) }; }));
+    } else if(mg.type==='sort_messages'){
+      wrap.appendChild(el('div',{class:'mg-sort'}, cfg.items.map(function(it){
+        var binRow=el('div',{class:'mg-bins'}, cfg.bins.map(function(bn){
+          var bb=el('button',{class:'mg-bin',onClick:function(){ st.assignments[it.id]=bn.id; var all=binRow.querySelectorAll('.mg-bin'); for(var i=0;i<all.length;i++) all[i].classList.remove('sel'); bb.classList.add('sel'); }},[bn.label]);
+          return bb;
+        }));
+        return el('div',{class:'mg-sort-row'},[ el('div',{class:'mg-sort-text',text:it.text}), binRow ]);
+      })));
+      wrap.appendChild(mgButtons(ev,function(){ return { assignments:st.assignments }; }));
+    } else if(mg.type==='order_steps'){
+      var chosen=[];
+      var chosenBox=el('div',{class:'mg-order-chosen'});
+      var pool=el('div',{class:'mg-order-pool'});
+      function redraw(){
+        chosenBox.textContent='';
+        chosen.forEach(function(id,i){ var s=cfg.steps.filter(function(x){return x.id===id;})[0]; chosenBox.appendChild(el('div',{class:'mg-order-item'},[ el('span',{class:'mg-order-num',text:(i+1)+'. '}), s.text ])); });
+        pool.textContent='';
+        cfg.steps.filter(function(s){return chosen.indexOf(s.id)<0;}).forEach(function(s){ pool.appendChild(el('button',{class:'mg-order-btn',onClick:function(){ chosen.push(s.id); redraw(); }},['+ '+s.text])); });
+      }
+      redraw();
+      wrap.appendChild(el('p',{class:'mg-sublabel',text:'Your order:'}));
+      wrap.appendChild(chosenBox);
+      wrap.appendChild(el('p',{class:'mg-sublabel',text:'Remaining steps:'}));
+      wrap.appendChild(pool);
+      wrap.appendChild(el('div',{class:'btn-row'},[ el('button',{class:'btn secondary',onClick:function(){ chosen.length=0; redraw(); },text:'↺ Reset order'}) ]));
+      wrap.appendChild(mgButtons(ev,function(){ return { order:chosen.slice() }; }));
+    }
+    return wrap;
+  }
   function debriefScreen(){
     var g=state.game; var o=g.lastOutcome; if(!o) return journeyScreen(); var L=o.learning;
     var nodes=[
       el('div',{class:'stage-bar',text:'◢ DEBRIEF — '+(o.eventTitle||'')}),
       hud(g),
       el('div',{class:'panel debrief'},[
-        el('span',{class:'badge '+(o.isRecommended?'ok':'no'),text:o.isRecommended?'✓ Strong security decision':'✗ Risky decision'}),
+        el('span',{class:'badge '+(o.isRecommended?'ok':'no'),text: o.band ? ((o.skipped?'⤼ Skipped — ':'')+({perfect:'★ PERFECT',good:'✓ GOOD',fail:'✗ FAILED'}[o.band]||o.band)) : (o.isRecommended?'✓ Strong security decision':'✗ Risky decision')}),
         el('p',{class:'prompt-text',text:o.outcome}),
         el('hr'),
         el('p',{class:'eyebrow',text:'// THREAT INTEL'}),

@@ -200,17 +200,19 @@
         '   ·   SCORE ' + g.score }),
       hud(g),
       el('div', { class: 'panel' }, [
-        el('p', { class: 'eyebrow', text: '// INCOMING EVENT' }),
+        el('p', { class: 'eyebrow', text: ev.minigame ? '// INTERACTIVE CHALLENGE' : '// INCOMING EVENT' }),
         el('h2', { class: 'subtitle', text: ev.title }),
         el('p', { class: 'prompt-text', text: ev.prompt }),
-        el('div', {},
-          ev.choices.map((c, i) =>
-            el('button', { class: 'choice', onClick: () => submitChoice(ev.id, c.id) }, [
-              el('span', { class: 'key', text: (keys[i] || '•') + '.' }),
-              c.label,
-            ]),
-          ),
-        ),
+        ev.minigame
+          ? miniGameBlock(ev)
+          : el('div', {},
+              ev.choices.map((c, i) =>
+                el('button', { class: 'choice', onClick: () => submitChoice(ev.id, c.id) }, [
+                  el('span', { class: 'key', text: (keys[i] || '•') + '.' }),
+                  c.label,
+                ]),
+              ),
+            ),
         glossaryBlock(ev.glossary),
       ]),
     ]);
@@ -222,6 +224,151 @@
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ eventId, choiceId }),
+      });
+      debriefScreen();
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
+  // ------------------------- mini-games -------------------------
+  // Model C: some events render an interactive challenge instead of choices.
+  // The client collects the player's raw result and submits it; the SERVER
+  // grades it (the answer key never reaches the browser).
+  function miniGameBlock(ev) {
+    const mg = ev.minigame;
+    const cfg = mg.config;
+    const wrap = el('div', { class: 'minigame' });
+    wrap.appendChild(el('p', { class: 'mg-instructions', text: cfg.instructions }));
+
+    // local mutable selection state for this mini-game instance
+    const state2 = { selected: {}, assignments: {}, order: null };
+
+    if (mg.type === 'spot_the_phish') {
+      wrap.appendChild(el('div', { class: 'mg-email' }, [
+        el('div', { class: 'mg-email-head' }, [
+          el('div', {}, [el('span', { class: 'mg-label', text: 'From: ' }), el('span', { class: 'mg-tok', 'data-id': 'from', text: cfg.from })]),
+          el('div', {}, [el('span', { class: 'mg-label', text: 'Subject: ' }), el('span', { class: 'mg-tok', 'data-id': 'subject', text: cfg.subject })]),
+        ]),
+        el('div', { class: 'mg-tokens' },
+          cfg.tokens.map((t) => {
+            const btn = el('button', {
+              class: 'mg-token',
+              onClick: () => {
+                state2.selected[t.id] = !state2.selected[t.id];
+                btn.classList.toggle('picked', !!state2.selected[t.id]);
+              },
+            }, [t.text]);
+            return btn;
+          }),
+        ),
+      ]));
+      wrap.appendChild(miniGameButtons(ev, () => ({
+        selected: Object.keys(state2.selected).filter((k) => state2.selected[k]),
+      })));
+    }
+
+    else if (mg.type === 'pick_practices') {
+      wrap.appendChild(el('div', { class: 'mg-options' },
+        cfg.options.map((o) => {
+          const btn = el('button', {
+            class: 'mg-option',
+            onClick: () => {
+              state2.selected[o.id] = !state2.selected[o.id];
+              btn.classList.toggle('picked', !!state2.selected[o.id]);
+            },
+          }, [el('span', { class: 'mg-check', text: '◻ ' }), o.text]);
+          btn.addEventListener('click', () => {
+            btn.querySelector('.mg-check').textContent = state2.selected[o.id] ? '☑ ' : '◻ ';
+          });
+          return btn;
+        }),
+      ));
+      wrap.appendChild(miniGameButtons(ev, () => ({
+        selected: Object.keys(state2.selected).filter((k) => state2.selected[k]),
+      })));
+    }
+
+    else if (mg.type === 'sort_messages') {
+      // Each item gets a row of bin buttons; clicking sets its assignment.
+      wrap.appendChild(el('div', { class: 'mg-sort' },
+        cfg.items.map((it) => {
+          const binRow = el('div', { class: 'mg-bins' },
+            cfg.bins.map((b) => {
+              const bb = el('button', {
+                class: 'mg-bin',
+                onClick: () => {
+                  state2.assignments[it.id] = b.id;
+                  // visually mark selected bin in this row
+                  binRow.querySelectorAll('.mg-bin').forEach((x) => x.classList.remove('sel'));
+                  bb.classList.add('sel');
+                },
+              }, [b.label]);
+              return bb;
+            }),
+          );
+          return el('div', { class: 'mg-sort-row' }, [
+            el('div', { class: 'mg-sort-text', text: it.text }),
+            binRow,
+          ]);
+        }),
+      ));
+      wrap.appendChild(miniGameButtons(ev, () => ({ assignments: state2.assignments })));
+    }
+
+    else if (mg.type === 'order_steps') {
+      // Click steps in the order you'd perform them; show the chosen order.
+      const chosen = [];
+      const chosenBox = el('div', { class: 'mg-order-chosen' });
+      const pool = el('div', { class: 'mg-order-pool' });
+      function redraw() {
+        chosenBox.textContent = '';
+        chosen.forEach((id, i) => {
+          const step = cfg.steps.find((s) => s.id === id);
+          chosenBox.appendChild(el('div', { class: 'mg-order-item' }, [
+            el('span', { class: 'mg-order-num', text: (i + 1) + '. ' }), step.text,
+          ]));
+        });
+        pool.textContent = '';
+        cfg.steps.filter((s) => chosen.indexOf(s.id) < 0).forEach((s) => {
+          pool.appendChild(el('button', { class: 'mg-order-btn', onClick: () => { chosen.push(s.id); redraw(); } }, ['+ ' + s.text]));
+        });
+      }
+      redraw();
+      const reset = el('button', { class: 'btn secondary', onClick: () => { chosen.length = 0; redraw(); }, text: '↺ Reset order' });
+      wrap.appendChild(el('p', { class: 'mg-sublabel', text: 'Your order:' }));
+      wrap.appendChild(chosenBox);
+      wrap.appendChild(el('p', { class: 'mg-sublabel', text: 'Remaining steps:' }));
+      wrap.appendChild(pool);
+      wrap.appendChild(el('div', { class: 'btn-row' }, [reset]));
+      wrap.appendChild(miniGameButtons(ev, () => ({ order: chosen.slice() })));
+    }
+
+    return wrap;
+  }
+
+  function miniGameButtons(ev, collect) {
+    return el('div', { class: 'btn-row mg-actions' }, [
+      el('button', { class: 'btn', onClick: () => submitMiniGame(ev, collect(), false), text: '✓ Submit' }),
+      el('button', { class: 'btn secondary', onClick: () => {
+        if (confirmSkip()) submitMiniGame(ev, {}, true);
+      }, text: '⤼ Skip (take the loss)' }),
+    ]);
+  }
+
+  function confirmSkip() {
+    return window.confirm(
+      'Skip this challenge? It will be scored as a failure and you will take the ' +
+      'full resource loss for it.',
+    );
+  }
+
+  async function submitMiniGame(ev, result, skipped) {
+    try {
+      state.game = await api('/api/game/' + state.game.sessionId + '/minigame', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ eventId: ev.id, minigameId: ev.minigame.id, result, skipped }),
       });
       debriefScreen();
     } catch (e) {
@@ -241,7 +388,10 @@
       hud(g),
       el('div', { class: 'panel debrief' }, [
         el('span', { class: 'badge ' + (o.isRecommended ? 'ok' : 'no'),
-          text: o.isRecommended ? '✓ Strong security decision' : '✗ Risky decision' }),
+          text: o.band
+            ? (o.skipped ? '⤼ Skipped — ' : '') +
+              ({ perfect: '★ PERFECT', good: '✓ GOOD', fail: '✗ FAILED' }[o.band] || o.band)
+            : (o.isRecommended ? '✓ Strong security decision' : '✗ Risky decision') }),
         el('p', { class: 'prompt-text', text: o.outcome }),
         el('hr'),
         el('p', { class: 'eyebrow', text: '// THREAT INTEL' }),

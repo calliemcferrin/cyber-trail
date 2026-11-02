@@ -52,4 +52,75 @@ function validateChoose(body) {
   return { ok: true, value: { eventId, choiceId } };
 }
 
-module.exports = { isId, isUuid, parseJson, validateStart, validateChoose };
+/** A bounded array of ids (for mini-game selections / order). */
+function isIdArray(v, maxLen = 32) {
+  return (
+    Array.isArray(v) &&
+    v.length <= maxLen &&
+    v.every((x) => isId(x))
+  );
+}
+
+/**
+ * POST /api/game/:id/minigame body.
+ * Shape: { eventId, minigameId, skipped?, result? }
+ * `result` is type-dependent and validated loosely but safely:
+ *   - selected: id[]            (spot_the_phish / pick_practices)
+ *   - order: id[]               (order_steps)
+ *   - assignments: { id: binId } (sort_messages) — bounded, ids only
+ * The server grades it; invalid/missing result simply grades poorly.
+ */
+function validateMiniGame(body) {
+  if (!body || typeof body !== 'object') return { ok: false };
+  const { eventId, minigameId, skipped, result } = body;
+  if (!isId(eventId) || !isId(minigameId)) return { ok: false };
+
+  const allowed = ['eventId', 'minigameId', 'skipped', 'result'];
+  if (Object.keys(body).some((k) => !allowed.includes(k))) return { ok: false };
+
+  if (skipped !== undefined && typeof skipped !== 'boolean') return { ok: false };
+
+  let cleanResult = {};
+  if (result !== undefined) {
+    if (result === null || typeof result !== 'object' || Array.isArray(result)) {
+      return { ok: false };
+    }
+    if (result.selected !== undefined) {
+      if (!isIdArray(result.selected)) return { ok: false };
+      cleanResult.selected = result.selected;
+    }
+    if (result.order !== undefined) {
+      if (!isIdArray(result.order)) return { ok: false };
+      cleanResult.order = result.order;
+    }
+    if (result.assignments !== undefined) {
+      const a = result.assignments;
+      if (a === null || typeof a !== 'object' || Array.isArray(a)) return { ok: false };
+      const keys = Object.keys(a);
+      if (keys.length > 32) return { ok: false };
+      for (const k of keys) {
+        if (!isId(k) || !isId(a[k])) return { ok: false };
+      }
+      cleanResult.assignments = a;
+    }
+  }
+
+  return {
+    ok: true,
+    value: {
+      eventId,
+      minigameId,
+      skipped: Boolean(skipped),
+      result: cleanResult,
+    },
+  };
+}
+
+module.exports = {
+  isId,
+  isUuid,
+  parseJson,
+  validateStart,
+  validateChoose,
+  validateMiniGame,
+};
