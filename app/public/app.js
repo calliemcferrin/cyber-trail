@@ -65,7 +65,7 @@
       el('div', { class: 'center' }, [
         el('p', { class: 'eyebrow', text: '// INSERT COIN — CRITICAL INFRASTRUCTURE DIVISION' }),
         el('img', { class: 'hero-logo', src: 'cyber-bison.png', alt: 'Marshall Cyber Bison' }),
-        el('h1', { class: 'title', text: 'CYBER TRAIL' }),
+        el('h1', { class: 'title', text: 'TRAIL' }),
         el('p', { class: 'subtitle', text: 'Survive the journey. Defend the grid. Learn the threats.' }),
         el('p', { class: 'collab', text: 'In collaboration with the Marshall University Institute for Cyber Security.' }),
       ]),

@@ -95,6 +95,7 @@ body::before {
   margin: 0 auto;
   padding: 2.2rem 1.25rem 5rem;
   min-height: 100vh;
+  text-align: center; /* center text everywhere by default */
 }
 
 .footer {
@@ -173,6 +174,8 @@ body::before {
   line-height: 1.7;
   color: var(--text);
   max-width: 68ch;
+  margin-left: auto;
+  margin-right: auto;
 }
 .blink { animation: blink 1s steps(1) infinite; color: var(--green); }
 @keyframes blink { 50% { opacity: 0; } }
@@ -293,7 +296,7 @@ body::before {
 }
 .badge.ok { color: var(--green); border-color: var(--green); background: rgba(91,255,122,0.1); }
 .badge.no { color: var(--red); border-color: var(--red); background: rgba(255,90,122,0.1); }
-.learn-list { margin: 0.6rem 0 0; padding-left: 1.3rem; }
+.learn-list { margin: 0.6rem auto 0; padding-left: 1.3rem; display: inline-block; text-align: left; }
 .learn-list li { margin: 0.5rem 0; line-height: 1.6; font-size: 1.02rem; }
 .meta { font-family: var(--font-mono); color: var(--dim); font-size: 0.85rem; }
 .attack-name { color: var(--purple); font-weight: 700; font-size: 1.15rem; }
@@ -301,7 +304,12 @@ body::before {
   border-left: 3px solid var(--blue);
   padding: 0.5rem 0 0.5rem 1rem;
   color: var(--text); font-size: 1.02rem; line-height: 1.6;
+  text-align: left;
 }
+/* Interactive / structured blocks stay left-aligned for readability. */
+.glossary, .review, .terminal-host, .term-screen, .term-task, .term-help,
+.mg-email, .mg-sort, .mg-options { text-align: left; }
+.term-task, .term-input-row { text-align: left; }
 .debrief hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 1.1rem 0; }
 
 /* ---------------------------- glossary ("Beyond the acronym") ---------------------------- */
