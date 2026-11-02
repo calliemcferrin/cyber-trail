@@ -67,7 +67,7 @@
         el('img', { class: 'hero-logo', src: 'cyber-bison.png', alt: 'Marshall Cyber Bison' }),
         el('h1', { class: 'title', text: 'CYBER TRAIL' }),
         el('p', { class: 'subtitle', text: 'Survive the journey. Defend the grid. Learn the threats.' }),
-        el('p', { class: 'collab', text: 'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬' }),
+        el('p', { class: 'collab', text: 'In collaboration with the Marshall University Institute for Cyber Security.' }),
       ]),
       el('div', { class: 'panel' }, [
         el('p', { class: 'prompt-text', text:
@@ -319,10 +319,10 @@
     render([
       el('p', { class: 'eyebrow', text: '// MISSION LOADER' }),
       el('h2', { class: 'subtitle', text: 'Import your mission data' }),
-      // Supervisor access is gated by the mascot's name — show Marco as a cue.
+      // Supervisor access is gated by the mascot's name — show the mascot as a cue.
       role === 'supervisor'
         ? el('div', { class: 'mascot-cue' }, [
-            el('img', { class: 'mascot-img', src: 'marco-bison.png', alt: 'Marco the Bison' }),
+            el('img', { class: 'mascot-img', src: 'mascot.png', alt: 'Marshall mascot' }),
             el('p', { class: 'mascot-cap', text: 'Marshall\u2019s mascot stands guard here.' }),
           ])
         : null,

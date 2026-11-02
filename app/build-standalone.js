@@ -22,7 +22,7 @@ function dataUri(file, mime) {
   return 'data:' + mime + ';base64,' + b64;
 }
 const cyberBisonUri = dataUri('cyber-bison.png', 'image/png');
-const marcoBisonUri = dataUri('marco-bison.png', 'image/png');
+const marcoBisonUri = dataUri('mascot.png', 'image/png');
 
 const { FACILITIES, ROLES, EVENTS } = require('./content.js');
 const { GLOSSARY } = require('./glossary.js');
@@ -101,7 +101,7 @@ ${css}
 </main>
 <footer class="footer">
   <span class="blink">&#9679;</span> CYBER TRAIL v0.1 &mdash; in collaboration with the
-  Marshall University Institute for Cyber Security &middot; mascot: Marco the Bison.
+  Marshall University Institute for Cyber Security.
   All "attacks" are simulated for learning.
 </footer>
 
@@ -232,7 +232,7 @@ function choose(eventId,choiceId){
         el('img',{class:'hero-logo',src:'${cyberBisonUri}',alt:'Marshall Cyber Bison'}),
         el('h1',{class:'title',text:'CYBER TRAIL'}),
         el('p',{class:'subtitle',text:'Survive the journey. Defend the grid. Learn the threats.'}),
-        el('p',{class:'collab',text:'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬'})
+        el('p',{class:'collab',text:'In collaboration with the Marshall University Institute for Cyber Security.'})
       ]),
       el('div',{class:'panel'},[
         el('p',{class:'prompt-text',text:'The year is now. You are responsible for guiding a piece of critical infrastructure through a gauntlet of cyber threats. Like the pioneers of old, your journey is full of hazards — but yours are phishing emails, ransomware, and insider threats instead of dysentery and broken axles. Choose your facility. Choose your role. Make smart decisions. Survive.'}),
@@ -329,7 +329,7 @@ function choose(eventId,choiceId){
       el('p',{class:'eyebrow',text:'// MISSION LOADER'}),
       el('h2',{class:'subtitle',text:'Import your mission data'}),
       role==='supervisor' ? el('div',{class:'mascot-cue'},[
-        el('img',{class:'mascot-img',src:'${marcoBisonUri}',alt:'Marco the Bison'}),
+        el('img',{class:'mascot-img',src:'${marcoBisonUri}',alt:'Marshall mascot'}),
         el('p',{class:'mascot-cap',text:'Marshall\\u2019s mascot stands guard here.'})
       ]) : null,
       el('div',{class:'panel'},[ screen, el('div',{class:'term-input-row'},[promptSpan,input]) ]),
