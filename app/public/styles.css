@@ -147,11 +147,8 @@ body::before {
   width: min(360px, 68vw);
   height: auto;
   margin: 0.4rem auto 0.2rem;
-  /* The source is a JPEG with a solid white background (no transparency).
-     'multiply' blending makes the white background drop out against our dark
-     page (white × dark = dark), removing the harsh white corners while keeping
-     the green circuit art and black bison visible. */
-  mix-blend-mode: multiply;
+  /* Transparent-background PNG — a subtle green glow sets it off the page. */
+  filter: drop-shadow(0 0 16px rgba(91, 255, 122, 0.35));
 }
 .collab {
   color: var(--blue);

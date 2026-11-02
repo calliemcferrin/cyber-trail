@@ -21,7 +21,7 @@ function dataUri(file, mime) {
   const b64 = fs.readFileSync(path.join(__dirname, 'public', file)).toString('base64');
   return 'data:' + mime + ';base64,' + b64;
 }
-const cyberBisonUri = dataUri('cyber-bison.jpg', 'image/jpeg');
+const cyberBisonUri = dataUri('cyber-bison.png', 'image/png');
 const marcoBisonUri = dataUri('marco-bison.png', 'image/png');
 
 const { FACILITIES, ROLES, EVENTS } = require('./content.js');
