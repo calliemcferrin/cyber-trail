@@ -22,7 +22,6 @@ function dataUri(file, mime) {
   return 'data:' + mime + ';base64,' + b64;
 }
 const cyberBisonUri = dataUri('cyber-bison.jpg', 'image/jpeg');
-const marshallMUri = dataUri('marshall-m.png', 'image/png');
 const marcoBisonUri = dataUri('marco-bison.png', 'image/png');
 
 const { FACILITIES, ROLES, EVENTS } = require('./content.js');
@@ -233,10 +232,7 @@ function choose(eventId,choiceId){
         el('img',{class:'hero-logo',src:'${cyberBisonUri}',alt:'Marshall Cyber Bison'}),
         el('h1',{class:'title',text:'CYBER TRAIL'}),
         el('p',{class:'subtitle',text:'Survive the journey. Defend the grid. Learn the threats.'}),
-        el('div',{class:'collab'},[
-          el('img',{class:'collab-logo',src:'${marshallMUri}',alt:'Marshall University'}),
-          el('span',{text:'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬'})
-        ])
+        el('p',{class:'collab',text:'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬'})
       ]),
       el('div',{class:'panel'},[
         el('p',{class:'prompt-text',text:'The year is now. You are responsible for guiding a piece of critical infrastructure through a gauntlet of cyber threats. Like the pioneers of old, your journey is full of hazards — but yours are phishing emails, ransomware, and insider threats instead of dysentery and broken axles. Choose your facility. Choose your role. Make smart decisions. Survive.'}),
@@ -293,26 +289,31 @@ function choose(eventId,choiceId){
     var screen=el('div',{class:'term-screen term-import-screen'});
     var input=el('input',{class:'term-input',autocomplete:'off',spellcheck:'false',placeholder:'type here and press Enter'});
     var promptSpan=el('span',{class:'term-prompt',text:'operator@cyber-trail:~\$ '});
-    var phase=gate?'auth':'import';
+    var phase='import';
     function print(line,cls){ screen.appendChild(el('div',{class:'term-line'+(cls?' '+cls:'')},[line])); screen.scrollTop=screen.scrollHeight; }
     function setMasked(m){ input.type=m?'password':'text'; input.value=''; input.placeholder=m?'enter access code and press Enter':'type the import command and press Enter'; }
     function norm(s){ return (s||'').toLowerCase().replace(/\\s+/g,' ').trim(); }
     function checkPassword(raw){ return gate.caseSensitive?(raw===gate.password):(raw.toLowerCase()===gate.password.toLowerCase()); }
-    function bootImport(){
-      print('usage: import <facility> --<role>','term-dim');
-      print('note: <> mark placeholders — do not type the angle brackets.','term-dim');
-      print('target facility : '+fac,'term-dim');
-      print('target role     : '+role,'term-dim');
-      print('e.g.  import '+fac+' --'+role,'term-dim');
+    function beginAuth(){
+      print('restricted: '+role+' access requires an access code.','term-dim');
+      print(gate.hints[(Math.random()*gate.hints.length)|0],'term-dim');
       print('—','term-dim');
-      promptSpan.textContent='operator@cyber-trail:~\$ ';
-      setMasked(false);
+      promptSpan.textContent='auth@cyber-trail:~\$ ';
+      phase='auth'; setMasked(true); input.focus();
+    }
+    function launch(){
+      input.disabled=true;
+      print('fetching '+fac+' profile …','term-out');
+      setTimeout(function(){ print('loading '+role+' toolkit …','term-out'); },350);
+      setTimeout(function(){ print('integrity check … OK','term-out'); },700);
+      setTimeout(function(){ print('mission loaded. launching …','term-ok'); },1000);
+      setTimeout(function(){ startJourney(); },1500);
     }
     function run(){
       var raw=input.value.trim(); if(!raw) return;
       if(phase==='auth'){
         print(promptSpan.textContent+'••••••');
-        if(checkPassword(raw)){ print('access granted. welcome, '+role+'.','term-ok'); print('—','term-dim'); phase='import'; bootImport(); input.focus(); }
+        if(checkPassword(raw)){ print('access granted. welcome, '+role+'.','term-ok'); launch(); }
         else { print('access denied — incorrect access code. try again.','term-dim'); input.value=''; input.focus(); }
         return;
       }
@@ -320,12 +321,8 @@ function choose(eventId,choiceId){
       var n=norm(raw);
       var ok=(n===expected)||(n===norm('import --'+role+' '+fac))||(n===norm('import '+fac+' -'+role));
       if(!ok){ if(n.indexOf('import')!==0){ print('command not found: '+raw.split(' ')[0]+' — try: import '+fac+' --'+role,'term-dim'); } else { print('import: unknown target — usage: import <facility> --<role> (import '+fac+' --'+role+')','term-dim'); } input.value=''; input.focus(); return; }
-      input.disabled=true;
-      print('fetching '+fac+' profile …','term-out');
-      setTimeout(function(){ print('loading '+role+' toolkit …','term-out'); },350);
-      setTimeout(function(){ print('integrity check … OK','term-out'); },700);
-      setTimeout(function(){ print('mission loaded. launching …','term-ok'); },1000);
-      setTimeout(function(){ startJourney(); },1500);
+      print('import OK — '+fac+' / '+role+' staged.','term-ok');
+      if(gate){ beginAuth(); } else { launch(); }
     }
     input.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); run(); } });
     render([
@@ -339,15 +336,13 @@ function choose(eventId,choiceId){
       el('div',{class:'btn-row'},[ el('button',{class:'btn secondary',onClick:roleScreen,text:'◀ Back'}) ])
     ]);
     print('cyber-trail // mission loader','term-ok');
-    if(gate){
-      print('restricted: '+role+' access requires an access code.','term-dim');
-      print(gate.hints[(Math.random()*gate.hints.length)|0],'term-dim');
-      print('—','term-dim');
-      promptSpan.textContent='auth@cyber-trail:~\$ ';
-      setMasked(true);
-    } else {
-      bootImport();
-    }
+    print('usage: import <facility> --<role>','term-dim');
+    print('note: <> mark placeholders — do not type the angle brackets.','term-dim');
+    print('target facility : '+fac,'term-dim');
+    print('target role     : '+role,'term-dim');
+    print('e.g.  import '+fac+' --'+role,'term-dim');
+    print('—','term-dim');
+    setMasked(false);
     input.focus();
   }
 

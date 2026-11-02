@@ -147,24 +147,18 @@ body::before {
   width: min(360px, 68vw);
   height: auto;
   margin: 0.4rem auto 0.2rem;
-  filter: drop-shadow(0 0 16px rgba(91, 255, 122, 0.35));
+  /* The source is a JPEG with a solid white background (no transparency).
+     'multiply' blending makes the white background drop out against our dark
+     page (white × dark = dark), removing the harsh white corners while keeping
+     the green circuit art and black bison visible. */
+  mix-blend-mode: multiply;
 }
 .collab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.8rem;
-  flex-wrap: wrap;
   color: var(--blue);
   font-size: 0.9rem;
   margin: 0.4rem auto 1.4rem;
   max-width: 60ch;
   line-height: 1.5;
-}
-.collab-logo {
-  width: 64px;
-  height: auto;
-  flex: 0 0 auto;
 }
 
 /* Marco the Bison on the supervisor access gate */

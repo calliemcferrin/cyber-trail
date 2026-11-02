@@ -67,10 +67,7 @@
         el('img', { class: 'hero-logo', src: 'cyber-bison.jpg', alt: 'Marshall Cyber Bison' }),
         el('h1', { class: 'title', text: 'CYBER TRAIL' }),
         el('p', { class: 'subtitle', text: 'Survive the journey. Defend the grid. Learn the threats.' }),
-        el('div', { class: 'collab' }, [
-          el('img', { class: 'collab-logo', src: 'marshall-m.png', alt: 'Marshall University' }),
-          el('span', { text: 'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬' }),
-        ]),
+        el('p', { class: 'collab', text: 'In collaboration with the Marshall University Institute for Cyber Security — home of Marco the Bison 🦬' }),
       ]),
       el('div', { class: 'panel' }, [
         el('p', { class: 'prompt-text', text:
@@ -214,8 +211,8 @@
       spellcheck: 'false', placeholder: 'type here and press Enter' });
     const promptSpan = el('span', { class: 'term-prompt', text: 'operator@cyber-trail:~$ ' });
 
-    // phase: 'auth' (password required) or 'import'
-    let phase = gate ? 'auth' : 'import';
+    // phase: always start with 'import'; gated roles move to 'auth' afterward.
+    let phase = 'import';
 
     function print(line, cls) {
       screen.appendChild(el('div', { class: 'term-line' + (cls ? ' ' + cls : '') }, [line]));
@@ -228,22 +225,10 @@
       input.placeholder = masked ? 'enter access code and press Enter' : 'type the import command and press Enter';
     }
 
+    // Flow: ALWAYS import first; if the role has an access gate, prompt for the
+    // access code AFTER a successful import, then load + launch.
     function boot() {
       print('cyber-trail // mission loader', 'term-ok');
-      if (gate) {
-        print('restricted: ' + role + ' access requires an access code.', 'term-dim');
-        // Show a hint (operator rotates among several; supervisor has one).
-        var hint = gate.hints[(Math.random() * gate.hints.length) | 0];
-        print(hint, 'term-dim');
-        print('—', 'term-dim');
-        promptSpan.textContent = 'auth@cyber-trail:~$ ';
-        setMasked(true);
-      } else {
-        bootImport();
-      }
-    }
-
-    function bootImport() {
       print('usage: import <facility> --<role>', 'term-dim');
       print('note: <> mark placeholders — do not type the angle brackets.', 'term-dim');
       print('target facility : ' + fac, 'term-dim');
@@ -252,6 +237,26 @@
       print('—', 'term-dim');
       promptSpan.textContent = 'operator@cyber-trail:~$ ';
       setMasked(false);
+    }
+
+    function beginAuth() {
+      print('restricted: ' + role + ' access requires an access code.', 'term-dim');
+      var hint = gate.hints[(Math.random() * gate.hints.length) | 0];
+      print(hint, 'term-dim');
+      print('—', 'term-dim');
+      promptSpan.textContent = 'auth@cyber-trail:~$ ';
+      phase = 'auth';
+      setMasked(true);
+      input.focus();
+    }
+
+    function launch() {
+      input.disabled = true;
+      print('fetching ' + fac + ' profile …', 'term-out');
+      setTimeout(() => print('loading ' + role + ' toolkit …', 'term-out'), 350);
+      setTimeout(() => print('integrity check … OK', 'term-out'), 700);
+      setTimeout(() => { print('mission loaded. launching …', 'term-ok'); }, 1000);
+      setTimeout(() => startJourney(), 1500);
     }
 
     function normalize(s) {
@@ -267,14 +272,12 @@
       const raw = input.value.trim();
       if (!raw) return;
 
+      // Phase 2 (only for gated roles): access code, after a good import.
       if (phase === 'auth') {
         print(promptSpan.textContent + '••••••'); // never echo the code itself
         if (checkPassword(raw)) {
           print('access granted. welcome, ' + role + '.', 'term-ok');
-          print('—', 'term-dim');
-          phase = 'import';
-          bootImport();
-          input.focus();
+          launch();
         } else {
           print('access denied — incorrect access code. try again.', 'term-dim');
           input.value = '';
@@ -283,7 +286,7 @@
         return;
       }
 
-      // import phase
+      // Phase 1: the import command.
       print(promptSpan.textContent + raw);
       const norm = normalize(raw);
       const ok =
@@ -300,12 +303,13 @@
         input.focus();
         return;
       }
-      input.disabled = true;
-      print('fetching ' + fac + ' profile …', 'term-out');
-      setTimeout(() => print('loading ' + role + ' toolkit …', 'term-out'), 350);
-      setTimeout(() => print('integrity check … OK', 'term-out'), 700);
-      setTimeout(() => { print('mission loaded. launching …', 'term-ok'); }, 1000);
-      setTimeout(() => startJourney(), 1500);
+      // Import succeeded. If this role is gated, require the code now; else go.
+      print('import OK — ' + fac + ' / ' + role + ' staged.', 'term-ok');
+      if (gate) {
+        beginAuth();
+      } else {
+        launch();
+      }
     }
 
     input.addEventListener('keydown', (e) => {
