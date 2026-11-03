@@ -56,6 +56,7 @@ const facilities = JSON.stringify(Object.values(FACILITIES));
 const roles = JSON.stringify(Object.values(ROLES));
 const events = JSON.stringify(EVENTS);
 const glossary = JSON.stringify(GLOSSARY);
+const useCases = JSON.stringify(require('./glossary.js').USE_CASES);
 const minigames = JSON.stringify(mg.MINIGAMES);
 const eventMinigames = JSON.stringify(mg.EVENT_MINIGAMES);
 
@@ -78,6 +79,7 @@ const realLogicSource = [
   fnSource(mg._internal.getMiniGame),
   fnSource(mg._internal.publicMiniGame),
   // glossary detection (TERMS + eventText + glossaryFor are the real source)
+  'var USE_CASES = ' + useCases + ';',
   'var TERMS = Object.keys(GLOSSARY);',
   fnSource(require('./glossary.js')._internal.eventText),
   fnSource(glossaryFor),
