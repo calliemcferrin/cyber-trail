@@ -35,6 +35,47 @@
     return node;
   }
 
+  // Fisher–Yates shuffle (returns a new array). Used only to randomize the
+  // DISPLAY order of choices / mini-game items so answers aren't always in the
+  // same slot. Purely presentational: the server identifies every choice and
+  // item by id, never by position, so this has no effect on grading or the
+  // anti-cheat trust boundary.
+  function shuffled(arr) {
+    const a = (arr || []).slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // Per-encounter cache of shuffled display orders, so a question's layout is
+  // stable while it's on screen but re-randomizes on a new encounter/run.
+  // Keyed by event id (and reset whenever a new run starts).
+  let shuffleCache = Object.create(null);
+  function orderedChoices(ev) {
+    if (!shuffleCache[ev.id]) shuffleCache[ev.id] = shuffled(ev.choices);
+    return shuffleCache[ev.id];
+  }
+
+  // Clear all per-run client state so the next run starts clean. Budget and all
+  // meters are server-authoritative and re-initialized by startGame(), so this
+  // mainly resets the game handle + the UI caches (acronym teaching, shuffles).
+  // Called when starting a new facility/role without reloading the app.
+  function resetRunState() {
+    state.game = null;
+    shuffleCache = Object.create(null);
+    state.taughtTerms = Object.create(null);
+  }
+  // Stable-per-encounter shuffle of a named mini-game list (tokens / options /
+  // items / steps). Keyed by event id + list name so it doesn't reshuffle on an
+  // incidental re-render, but re-randomizes on a new run (cache is reset then).
+  function mgOrder(ev, name, list) {
+    const key = ev.id + '::' + name;
+    if (!shuffleCache[key]) shuffleCache[key] = shuffled(list);
+    return shuffleCache[key];
+  }
+
   function render(nodes) {
     app.textContent = '';
     app.classList.remove('fade');
@@ -45,6 +86,24 @@
   }
 
   async function api(path, options) {
+    // Transport seam: the normal app talks to the server over fetch. The
+    // offline standalone build installs `window.__CYBER_TRAIL_LOCAL__` — a
+    // local, in-browser handler that mirrors the server API — so the SAME UI
+    // code runs with no server. The server app never sets this global, so its
+    // behavior here is unchanged.
+    const local = typeof window !== 'undefined' && window.__CYBER_TRAIL_LOCAL__;
+    if (typeof local === 'function') {
+      const method = (options && options.method) || 'GET';
+      let body = null;
+      if (options && options.body) {
+        try { body = JSON.parse(options.body); } catch { body = null; }
+      }
+      const out = local(method, path, body); // { status, json }
+      if (!out || out.status >= 400) {
+        throw new Error((out && out.json && out.json.error) || 'Request failed.');
+      }
+      return out.json;
+    }
     const res = await fetch(API + path, Object.assign({ headers: {} }, options));
     const data = await res.json().catch(() => ({ error: 'Bad response.' }));
     if (!res.ok) throw new Error(data.error || 'Request failed.');
@@ -57,7 +116,15 @@
   }
 
   // ------------------------- state -------------------------
-  const state = { facilities: [], roles: [], facilityId: null, roleId: null, game: null };
+  // `taughtTerms` tracks which acronyms have already been explained INLINE this
+  // playthrough. An acronym is highlighted with a popover the first stage it
+  // appears in; after that it falls back to the bottom "Beyond the acronym"
+  // panel only. Reset on each new run. Purely a client-side teaching aid — no
+  // bearing on scoring or the server trust boundary.
+  const state = {
+    facilities: [], roles: [], facilityId: null, roleId: null, game: null,
+    taughtTerms: Object.create(null),
+  };
 
   // ------------------------- screens -------------------------
   function titleScreen() {
@@ -71,11 +138,9 @@
       ]),
       el('div', { class: 'panel' }, [
         el('p', { class: 'prompt-text', text:
-          'The year is now. You are responsible for guiding a piece of critical ' +
-          'infrastructure through a gauntlet of cyber threats. Like the pioneers ' +
-          'of old, your journey is full of hazards — but yours are phishing emails, ' +
-          'ransomware, and insider threats instead of dysentery and broken axles. ' +
-          'Choose your facility. Choose your role. Make smart decisions. Survive.' }),
+          'Guide a critical-infrastructure facility through a gauntlet of real ' +
+          'cyber threats. Pick a facility, pick a role, make the right calls — ' +
+          'and survive the trail.' }),
         el('div', { class: 'btn-row' }, [
           el('button', { class: 'btn', onClick: startFlow, text: '▶ Begin Journey' }),
         ]),
@@ -101,13 +166,15 @@
   function facilityScreen() {
     render([
       el('p', { class: 'eyebrow', text: '// STEP 1 OF 2 — SELECT FACILITY' }),
-      el('h2', { class: 'subtitle', text: 'Which critical infrastructure will you defend?' }),
+      el('h2', { class: 'subtitle', text: 'Choose a facility' }),
       el('div', { class: 'card-grid' },
         state.facilities.map((fac) =>
           el('button', { class: 'card', onClick: () => { state.facilityId = fac.id; roleScreen(); } }, [
             el('div', { class: 'tag', text: fac.sector }),
             el('h3', { text: fac.name }),
-            el('p', { text: fac.description }),
+            // Short blurb keeps the selection screen scannable; full description
+            // still lives in the data for anywhere that wants it.
+            el('p', { text: fac.blurb || fac.description }),
           ]),
         ),
       ),
@@ -117,13 +184,13 @@
   function roleScreen() {
     render([
       el('p', { class: 'eyebrow', text: '// STEP 2 OF 2 — SELECT ROLE' }),
-      el('h2', { class: 'subtitle', text: 'Whose eyes will you see the threats through?' }),
+      el('h2', { class: 'subtitle', text: 'Choose your role' }),
       el('div', { class: 'card-grid' },
         state.roles.map((role) =>
           el('button', { class: 'card', onClick: () => beginGame(role.id) }, [
             el('div', { class: 'tag', text: role.tagline }),
             el('h3', { text: role.name }),
-            el('p', { text: role.description }),
+            el('p', { text: role.blurb || role.description }),
           ]),
         ),
       ),
@@ -136,16 +203,60 @@
   function beginGame(roleId) {
     state.roleId = roleId;
     // On mobile (touch + narrow screen), skip the typing step entirely and go
-    // straight into the mission. On desktop, show the themed import terminal.
+    // straight into the mission. On desktop, show the explainer then the
+    // themed import terminal.
     if (isMobile()) {
       startJourney();
     } else {
-      importScreen();
+      importIntroScreen();
     }
+  }
+
+  // Plain-language explainer shown BEFORE the import terminal, so players know
+  // exactly how to use the terminal that follows. Desktop-only (mobile skips
+  // the terminal entirely).
+  function importIntroScreen() {
+    const fac = state.facilityId;
+    const role = state.roleId;
+    const gate = accessGateFor(role);
+    render([
+      el('p', { class: 'eyebrow', text: '// MISSION LOADER — BRIEFING' }),
+      el('h2', { class: 'subtitle', text: 'How to import your mission data' }),
+      el('div', { class: 'panel' }, [
+        el('p', { class: 'prompt-text', text:
+          'The next screen is a terminal — a text prompt where you load your ' +
+          'game data by typing a command. It works like a real command line: ' +
+          'type the command, then press Enter.' }),
+        el('p', { class: 'intro-step', text: '1. Build the import command in this order:' }),
+        el('div', { class: 'intro-cmd' }, [
+          el('code', { text: 'import <facility> --<role>' }),
+        ]),
+        el('p', { class: 'meta', text:
+          'The command is always: the word "import", then your facility, then ' +
+          '"--" immediately followed by your role. The <> are placeholders — the ' +
+          'terminal shows your actual facility and role; read them off the screen ' +
+          'and fill them in yourself (don\u2019t type the angle brackets).' }),
+        gate
+          ? el('p', { class: 'intro-step', text:
+              '2. Then you\u2019ll be asked for an access code (a themed puzzle — a ' +
+              'hint is shown on the terminal). Work it out and type it, then Enter.' })
+          : null,
+        el('p', { class: 'intro-note', text:
+          'Handy commands in the terminal: type "clear" to wipe the screen and ' +
+          'reprint the instructions, and you can drag the bottom edge of the ' +
+          'terminal to resize it so the instructions stay in view.' }),
+      ]),
+      el('div', { class: 'btn-row' }, [
+        el('button', { class: 'btn secondary', onClick: roleScreen, text: '◀ Back' }),
+        el('button', { class: 'btn', onClick: importScreen, text: '▶ Open the terminal' }),
+      ]),
+    ]);
   }
 
   async function startJourney() {
     try {
+      state.taughtTerms = Object.create(null); // fresh inline-teaching for a new run
+      shuffleCache = Object.create(null);      // fresh answer-position shuffles for a new run
       state.game = await api('/api/game/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -206,10 +317,22 @@
     const expected = ('import ' + fac + ' --' + role).toLowerCase();
     const gate = accessGateFor(role);
 
+    // Pinned instructions header — always visible, never scrolls away, and is
+    // reprinted by `clear`. This is the "don't keep scrolling to find the
+    // original data" fix.
+    const pinned = el('div', { class: 'term-pinned' }, [
+      el('div', { class: 'term-pinned-title', text: 'cyber-trail // mission loader' }),
+      el('div', { class: 'term-pinned-line', text: 'usage: import <facility> --<role>   (<> are placeholders — don\u2019t type the brackets)' }),
+      el('div', { class: 'term-pinned-line term-dim', text: 'order: import · then your facility · then --your role (use the values shown below)' }),
+      el('div', { class: 'term-pinned-line term-dim', text: 'type "clear" to reset the screen · drag the bottom edge to resize' }),
+    ]);
+
     const screen = el('div', { class: 'term-screen term-import-screen' });
     const input = el('input', { class: 'term-input', autocomplete: 'off',
       spellcheck: 'false', placeholder: 'type here and press Enter' });
     const promptSpan = el('span', { class: 'term-prompt', text: 'operator@cyber-trail:~$ ' });
+    // Drag handle to resize the scrolling output area.
+    const resizeHandle = el('div', { class: 'term-resize', title: 'drag to resize' });
 
     // phase: always start with 'import'; gated roles move to 'auth' afterward.
     let phase = 'import';
@@ -217,6 +340,10 @@
     function print(line, cls) {
       screen.appendChild(el('div', { class: 'term-line' + (cls ? ' ' + cls : '') }, [line]));
       screen.scrollTop = screen.scrollHeight;
+    }
+
+    function clearScreen() {
+      screen.textContent = '';
     }
 
     function setMasked(masked) {
@@ -228,12 +355,10 @@
     // Flow: ALWAYS import first; if the role has an access gate, prompt for the
     // access code AFTER a successful import, then load + launch.
     function boot() {
-      print('cyber-trail // mission loader', 'term-ok');
-      print('usage: import <facility> --<role>', 'term-dim');
-      print('note: <> mark placeholders — do not type the angle brackets.', 'term-dim');
-      print('target facility : ' + fac, 'term-dim');
-      print('target role     : ' + role, 'term-dim');
-      print('e.g.  import ' + fac + ' --' + role, 'term-dim');
+      // Usage now lives in the always-visible pinned header above; keep the
+      // scrollback light so the prompt starts clean.
+      print('ready. target facility: ' + fac + ' · role: ' + role, 'term-dim');
+      print('type the import command below and press Enter.', 'term-dim');
       print('—', 'term-dim');
       promptSpan.textContent = 'operator@cyber-trail:~$ ';
       setMasked(false);
@@ -272,6 +397,23 @@
       const raw = input.value.trim();
       if (!raw) return;
 
+      // `clear` / `cls`: wipe the scrollback and reprint the right prompt for
+      // the current phase. The pinned instructions above never go away.
+      if (/^(clear|cls)$/i.test(raw)) {
+        clearScreen();
+        if (phase === 'auth') {
+          print('restricted: ' + role + ' access requires an access code.', 'term-dim');
+          var h = gate.hints[(Math.random() * gate.hints.length) | 0];
+          print(h, 'term-dim');
+          print('—', 'term-dim');
+        } else {
+          boot();
+        }
+        input.value = '';
+        input.focus();
+        return;
+      }
+
       // Phase 2 (only for gated roles): access code, after a good import.
       if (phase === 'auth') {
         print(promptSpan.textContent + '••••••'); // never echo the code itself
@@ -295,9 +437,11 @@
         norm === normalize('import ' + fac + ' -' + role);
       if (!ok) {
         if (norm.indexOf('import') !== 0) {
-          print("command not found: " + raw.split(' ')[0] + ' — try: import ' + fac + ' --' + role, 'term-dim');
+          print("command not found: " + raw.split(' ')[0] +
+            ' — start with "import", then your facility and --your role (see the values above).', 'term-dim');
         } else {
-          print("import: unknown target — usage: import <facility> --<role> (import " + fac + ' --' + role + ')', 'term-dim');
+          print('import: that doesn\u2019t match — usage: import <facility> --<role>. ' +
+            'Check the facility and role shown above and fill them in (no angle brackets).', 'term-dim');
         }
         input.value = '';
         input.focus();
@@ -327,38 +471,215 @@
           ])
         : null,
       el('div', { class: 'panel' }, [
+        pinned,
         screen,
+        resizeHandle,
         el('div', { class: 'term-input-row' }, [promptSpan, input]),
       ]),
       el('div', { class: 'btn-row' }, [
-        el('button', { class: 'btn secondary', onClick: roleScreen, text: '◀ Back' }),
+        el('button', { class: 'btn secondary', onClick: importIntroScreen, text: '◀ Back' }),
       ]),
     ]);
+    enableResize(screen, resizeHandle);
     boot();
     input.focus();
   }
 
+  // Drag-to-resize for a terminal output area. Dragging the handle adjusts the
+  // scrolling region's height (bounded), so players can expand it to keep more
+  // of the session (and the pinned instructions) in view without scrolling.
+  function enableResize(screen, handle) {
+    let startY = 0;
+    let startH = 0;
+    let dragging = false;
+    function onMove(e) {
+      if (!dragging) return;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY);
+      const next = Math.max(120, Math.min(640, startH + (y - startY)));
+      screen.style.height = next + 'px';
+      e.preventDefault();
+    }
+    function onUp() {
+      dragging = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onUp);
+    }
+    function onDown(e) {
+      dragging = true;
+      startY = (e.touches ? e.touches[0].clientY : e.clientY);
+      startH = screen.getBoundingClientRect().height;
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onUp);
+      e.preventDefault();
+    }
+    handle.addEventListener('mousedown', onDown);
+    handle.addEventListener('touchstart', onDown, { passive: false });
+  }
+
   // ------------------------- HUD -------------------------
-  function meter(label, value) {
+  // What each meter means and what moves it — shown as an expandable explainer
+  // on the side rail so players understand the consequences of their choices.
+  var METER_INFO = {
+    integrity: {
+      label: 'Integrity',
+      what: 'Your security posture — how clean and uncompromised your systems are.',
+      up: 'Catching threats, correct responses, strong practices.',
+      down: 'Missing attacks, risky choices, skipping challenges, and ongoing drain.',
+    },
+    uptime: {
+      label: 'Uptime',
+      what: 'How available your facility\u2019s services are to the people who depend on them.',
+      up: 'Keeping systems running; fast, contained incident response.',
+      down: 'Outages, heavy-handed responses that take systems offline, and drain.',
+    },
+    budget: {
+      label: 'Budget',
+      what: 'The money you have left to spend on defense and operations.',
+      up: 'Efficient decisions and avoided incidents (incidents are expensive).',
+      down: 'Costly responses, fines, cleanup, and steady operating cost each stage.',
+    },
+    morale: {
+      label: 'Morale',
+      what: 'The confidence and sharpness of your people — your human firewall.',
+      up: 'Good calls that protect the team and build a security culture.',
+      down: 'Breaches, blame, burnout, and the grind of each stage.',
+    },
+  };
+
+  // A single meter. `delta` (optional) shows how much this value just changed.
+  function meter(key, value, delta) {
+    const info = METER_INFO[key];
     const cls = value > 50 ? 'good' : value > 25 ? 'warn' : 'bad';
-    return el('div', { class: 'meter' }, [
-      el('div', { class: 'label' }, [
-        el('span', { text: label }),
+    const valueRow = el('div', { class: 'label' }, [
+      el('span', { text: info.label }),
+      el('span', { class: 'meter-val' }, [
+        delta ? el('span', {
+          class: 'meter-delta ' + (delta > 0 ? 'up' : 'down'),
+          text: (delta > 0 ? '+' : '') + delta + ' ',
+        }) : null,
         el('span', { text: String(value) }),
       ]),
+    ]);
+    return el('div', { class: 'meter' }, [
+      valueRow,
       el('div', { class: 'bar' }, [
         el('div', { class: 'fill ' + cls, style: 'width:' + value + '%' }),
+      ]),
+      el('details', { class: 'meter-info' }, [
+        el('summary', { text: 'what moves this?' }),
+        el('p', { class: 'mi-what', text: info.what }),
+        el('p', { class: 'mi-line' }, [ el('span', { class: 'mi-up', text: '▲ raises: ' }), info.up ]),
+        el('p', { class: 'mi-line' }, [ el('span', { class: 'mi-down', text: '▼ lowers: ' }), info.down ]),
       ]),
     ]);
   }
 
-  function hud(g) {
-    return el('div', { class: 'hud' }, [
-      meter('Integrity', g.resources.integrity),
-      meter('Uptime', g.resources.uptime),
-      meter('Budget', g.resources.budget),
-      meter('Morale', g.resources.morale),
+  // The resource rail. `deltas` (optional) is the per-meter change from the last
+  // turn, shown only on the debrief so the player sees what their choice did.
+  function hud(g, deltas) {
+    deltas = deltas || {};
+    return el('aside', { class: 'hud' }, [
+      el('p', { class: 'hud-title', text: 'FACILITY STATUS' }),
+      meter('integrity', g.resources.integrity, deltas.integrity),
+      meter('uptime', g.resources.uptime, deltas.uptime),
+      meter('budget', g.resources.budget, deltas.budget),
+      meter('morale', g.resources.morale, deltas.morale),
     ]);
+  }
+
+  // Two-column journey/debrief layout: resource rail beside the main panel.
+  // Collapses to stacked on narrow screens via CSS.
+  function gameLayout(g, mainNodes, deltas) {
+    return el('div', { class: 'game-layout' }, [
+      hud(g, deltas),
+      el('div', { class: 'game-main' }, Array.isArray(mainNodes) ? mainNodes : [mainNodes]),
+    ]);
+  }
+
+  // ------------------------- inline acronym popovers -------------------------
+  // Only one popover is open at a time. Clicking the term toggles it; clicking
+  // elsewhere, pressing Esc, or opening another term closes it.
+  let openPopover = null;
+  function closePopover() {
+    if (openPopover && openPopover.parentNode) openPopover.parentNode.removeChild(openPopover);
+    openPopover = null;
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePopover(); });
+  // Clicking anywhere outside the open chip/popover closes it. The chip and the
+  // popover both stopPropagation on their own clicks, so this only fires for
+  // "outside" clicks (bubble phase).
+  document.addEventListener('click', () => closePopover());
+
+  // Build an interactive acronym chip with an on-demand definition popover.
+  function acronymChip(entry) {
+    const chip = el('button', {
+      class: 'acro' + (entry.useCase ? ' acro-deep' : ''),
+      type: 'button',
+      'aria-label': entry.term + ' — show definition',
+      title: 'what is ' + entry.term + '?',
+    }, [entry.term]);
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation(); // don't let the document handler treat this as "outside"
+      const wasThis = openPopover && openPopover.__term === entry.term;
+      closePopover();
+      if (wasThis) return; // toggle off
+      const pop = el('span', { class: 'acro-pop' }, [
+        el('span', { class: 'acro-pop-term', text: entry.term }),
+        el('span', { class: 'acro-pop-def', text: entry.definition }),
+        entry.useCase ? el('span', { class: 'acro-pop-use' }, [
+          el('span', { class: 'acro-pop-use-label', text: 'In practice: ' }),
+          entry.useCase,
+        ]) : null,
+      ]);
+      pop.__term = entry.term;
+      pop.addEventListener('click', (ev) => ev.stopPropagation()); // clicks inside stay open
+      chip.appendChild(pop);
+      openPopover = pop;
+    });
+    return chip;
+  }
+
+  // Render a text string into an array of text nodes + acronym chips. Only the
+  // acronyms in `entries` (this event's detected terms) that have NOT yet been
+  // taught inline this run are turned into chips; each is marked taught after
+  // its FIRST occurrence so repeats in the same text aren't all chips. Terms
+  // already taught on a previous stage are left as plain text (they live in the
+  // bottom glossary instead).
+  function withAcronyms(text, entries) {
+    if (!text || !entries || !entries.length) return [text];
+    // Candidates = detected terms not yet taught this run, longest-first so a
+    // term like "SCADA" is matched before a shorter overlapping token.
+    const byTerm = {};
+    entries.forEach((e) => { byTerm[e.term] = e; });
+    const candidates = entries
+      .map((e) => e.term)
+      .filter((t) => !state.taughtTerms[t])
+      .sort((a, b) => b.length - a.length);
+    if (!candidates.length) return [text];
+    const esc = candidates.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    // Word-boundary-ish match with optional trailing plural s (acronyms are
+    // uppercase tokens): capture the surrounding non-alphanumerics.
+    const re = new RegExp('(^|[^A-Za-z0-9])(' + esc.join('|') + ')(s?)(?=[^A-Za-z0-9]|$)', 'g');
+    const nodes = [];
+    let last = 0;
+    let m;
+    while ((m = re.exec(text))) {
+      const term = m[2];
+      // Only chip the FIRST occurrence of each term; mark it taught.
+      if (state.taughtTerms[term]) continue;
+      const start = m.index + m[1].length;
+      if (start > last) nodes.push(text.slice(last, start));
+      nodes.push(acronymChip(byTerm[term]));
+      if (m[3]) nodes.push(m[3]); // preserve a trailing plural "s" as text
+      state.taughtTerms[term] = true;
+      last = start + term.length + (m[3] ? m[3].length : 0);
+    }
+    if (last < text.length) nodes.push(text.slice(last));
+    return nodes.length ? nodes : [text];
   }
 
   // ------------------------- glossary ("Beyond the acronym") -------------------------
@@ -371,12 +692,96 @@
       el('dl', { class: 'glossary-list' },
         terms.reduce((nodes, t) => {
           nodes.push(el('dt', { text: t.term }));
-          nodes.push(el('dd', { text: t.definition }));
+          nodes.push(el('dd', {}, [
+            t.definition,
+            // Show the deeper "In practice" note for the enriched OT/networking
+            // terms here too, so the bottom panel mirrors the inline popover.
+            t.useCase ? el('span', { class: 'glossary-use' }, [
+              el('span', { class: 'glossary-use-label', text: 'In practice: ' }),
+              t.useCase,
+            ]) : null,
+          ]));
           return nodes;
         }, []),
       ),
     ]);
     return details;
+  }
+
+  // ------------------------- meter-change explanation -------------------------
+  const METER_NAME = { integrity: 'Integrity', uptime: 'Uptime', budget: 'Budget', morale: 'Morale' };
+
+  // Format an effects array (or a deltas object) into "+8 Integrity, −4 Morale".
+  // Returns '' when there is no net change.
+  function fmtEffects(effects) {
+    // Accept either [{key,amount}] or {integrity:n,...}
+    let pairs;
+    if (Array.isArray(effects)) {
+      pairs = effects.map((e) => [e.key, e.amount]);
+    } else {
+      pairs = Object.keys(effects || {}).map((k) => [k, effects[k]]);
+    }
+    const parts = pairs
+      .filter(([, amt]) => amt)
+      .map(([key, amt]) => (amt > 0 ? '+' : '\u2212') + Math.abs(amt) + ' ' + (METER_NAME[key] || key));
+    return parts.join(', ');
+  }
+
+  // Explains WHERE the meter changes came from. For a mini-game: which band you
+  // landed in and the better/worse bands you could have hit (so the player sees
+  // exactly where negative points come from — dropping a band). For a plain
+  // choice: the literal per-choice delta that just hit the meters.
+  function meterExplain(o) {
+    if (!o) return null;
+    const BAND_LABEL = { perfect: '★ PERFECT', good: '✓ GOOD', fail: '✗ FAIL' };
+
+    // Mini-game: band-based explanation.
+    if (o.band && o.bandEffects) {
+      const be = o.bandEffects;
+      const rows = ['perfect', 'good', 'fail']
+        .filter((b) => be[b])
+        .map((b) => {
+          const eff = fmtEffects(be[b]) || 'no change';
+          const isYou = b === o.band;
+          return el('li', { class: 'meter-why-row' + (isYou ? ' you' : '') }, [
+            el('span', { class: 'meter-why-band', text: BAND_LABEL[b] || b }),
+            el('span', { class: 'meter-why-eff', text: eff }),
+            isYou ? el('span', { class: 'meter-why-tag', text: '  ← you' }) : null,
+          ]);
+        });
+      const wrong = o.wrongCount || 0;
+      const lead = o.skipped
+        ? 'You skipped this challenge, so it was scored as FAIL — the full penalty below.'
+        : wrong === 0
+          ? 'A clean sweep landed you in the top band. Here\u2019s what each band awards:'
+          : 'Your ' + wrong + ' wrong answer' + (wrong === 1 ? '' : 's') +
+            ' pushed you down the bands. Each band awards a fixed set of meter ' +
+            'changes — fewer mistakes = a higher band = better meters:';
+      return el('div', { class: 'meter-why' }, [
+        el('p', { class: 'meter-why-lead', text: 'Why your meters moved' }),
+        el('p', { class: 'meter-why-sub', text: lead }),
+        el('ul', { class: 'meter-why-list' }, rows),
+        wrong > 0 ? el('p', { class: 'meter-why-note', text:
+          'The negative points come from dropping a band — not from any single ' +
+          'item. Getting those ' + wrong + ' right would move you up.' }) : null,
+      ]);
+    }
+
+    // Plain choice: literal per-choice delta.
+    if (o.deltas) {
+      const s = fmtEffects(o.deltas);
+      if (!s) return null;
+      const good = o.isRecommended;
+      return el('div', { class: 'meter-why' }, [
+        el('p', { class: 'meter-why-lead', text: 'Why your meters moved' }),
+        el('p', { class: 'meter-why-sub' }, [
+          'This choice ' + (good ? 'earned' : 'cost') + ' you: ',
+          el('span', { class: 'meter-why-eff ' + (good ? 'pos' : 'neg'), text: s }),
+          good ? '.' : ' — a stronger decision would have protected those meters.',
+        ]),
+      ]);
+    }
+    return null;
   }
 
   // ------------------------- mini-game review ("where you went wrong") -------------------------
@@ -416,15 +821,21 @@
       el('div', { class: 'stage-bar', text:
         '◢ STAGE ' + (g.stage + 1) + ' / ' + g.totalStages +
         '   ·   SCORE ' + g.score }),
-      hud(g),
-      el('div', { class: 'panel' }, [
+      gameLayout(g, el('div', { class: 'panel' }, [
         el('p', { class: 'eyebrow', text: ev.minigame ? '// INTERACTIVE CHALLENGE' : '// INCOMING EVENT' }),
         el('h2', { class: 'subtitle', text: ev.title }),
-        el('p', { class: 'prompt-text', text: ev.prompt }),
+        // Prompt with inline acronym popovers (first encounter this run). This
+        // must render before glossaryBlock so the bottom panel knows which
+        // terms were just taught inline.
+        el('p', { class: 'prompt-text' }, withAcronyms(ev.prompt, ev.glossary)),
         ev.minigame
           ? miniGameBlock(ev)
           : el('div', {},
-              ev.choices.map((c, i) =>
+              // Shuffle the choice DISPLAY order so the recommended answer isn't
+              // always in the same slot. Cached per event id so it stays stable
+              // while the player is looking at this question (no reshuffling on
+              // an incidental re-render), but a fresh run/encounter re-randomizes.
+              orderedChoices(ev).map((c, i) =>
                 el('button', { class: 'choice', onClick: () => submitChoice(ev.id, c.id) }, [
                   el('span', { class: 'key', text: (keys[i] || '•') + '.' }),
                   c.label,
@@ -432,7 +843,7 @@
               ),
             ),
         glossaryBlock(ev.glossary),
-      ]),
+      ])),
     ]);
   }
 
@@ -480,13 +891,21 @@
     const state2 = { selected: {}, assignments: {}, order: null };
 
     if (mg.type === 'spot_the_phish') {
+      // Optional "known-good" reference, so look-alike red flags are detectable
+      // (you compare against what you already know is legitimate).
+      if (cfg.knownGood) {
+        wrap.appendChild(el('div', { class: 'mg-knowngood' }, [
+          el('span', { class: 'mg-knowngood-mark', text: '✓ ' }),
+          cfg.knownGood,
+        ]));
+      }
       wrap.appendChild(el('div', { class: 'mg-email' }, [
         el('div', { class: 'mg-email-head' }, [
-          el('div', {}, [el('span', { class: 'mg-label', text: 'From: ' }), el('span', { class: 'mg-tok', 'data-id': 'from', text: cfg.from })]),
-          el('div', {}, [el('span', { class: 'mg-label', text: 'Subject: ' }), el('span', { class: 'mg-tok', 'data-id': 'subject', text: cfg.subject })]),
+          el('div', {}, [el('span', { class: 'mg-label', text: (cfg.fromLabel || 'From') + ': ' }), el('span', { class: 'mg-tok', 'data-id': 'from', text: cfg.from })]),
+          el('div', {}, [el('span', { class: 'mg-label', text: (cfg.subjectLabel || 'Subject') + ': ' }), el('span', { class: 'mg-tok', 'data-id': 'subject', text: cfg.subject })]),
         ]),
         el('div', { class: 'mg-tokens' },
-          cfg.tokens.map((t) => {
+          mgOrder(ev, 'tokens', cfg.tokens).map((t) => {
             const btn = el('button', {
               class: 'mg-token',
               onClick: () => {
@@ -505,7 +924,7 @@
 
     else if (mg.type === 'pick_practices') {
       wrap.appendChild(el('div', { class: 'mg-options' },
-        cfg.options.map((o) => {
+        mgOrder(ev, 'options', cfg.options).map((o) => {
           const btn = el('button', {
             class: 'mg-option',
             onClick: () => {
@@ -526,8 +945,10 @@
 
     else if (mg.type === 'sort_messages') {
       // Each item gets a row of bin buttons; clicking sets its assignment.
+      // Items are shuffled; bins stay in a fixed, labeled order (they're the
+      // answer categories, not answers).
       wrap.appendChild(el('div', { class: 'mg-sort' },
-        cfg.items.map((it) => {
+        mgOrder(ev, 'items', cfg.items).map((it) => {
           const binRow = el('div', { class: 'mg-bins' },
             cfg.bins.map((b) => {
               const bb = el('button', {
@@ -553,7 +974,11 @@
 
     else if (mg.type === 'order_steps') {
       // Click steps in the order you'd perform them; show the chosen order.
+      // IMPORTANT: present the pool in a SHUFFLED order — the authored cfg.steps
+      // order is the correct answer, so showing them pre-sorted would give it
+      // away. The player must build the sequence themselves.
       const chosen = [];
+      const shuffledSteps = mgOrder(ev, 'steps', cfg.steps);
       const chosenBox = el('div', { class: 'mg-order-chosen' });
       const pool = el('div', { class: 'mg-order-pool' });
       function redraw() {
@@ -565,7 +990,7 @@
           ]));
         });
         pool.textContent = '';
-        cfg.steps.filter((s) => chosen.indexOf(s.id) < 0).forEach((s) => {
+        shuffledSteps.filter((s) => chosen.indexOf(s.id) < 0).forEach((s) => {
           pool.appendChild(el('button', { class: 'mg-order-btn', onClick: () => { chosen.push(s.id); redraw(); } }, ['+ ' + s.text]));
         });
       }
@@ -613,9 +1038,10 @@
     function runGame(level) {
       const steps = cfg.steps;
       let idx = 0;
-      const typed = {};        // stepId -> command string (submitted)
+      const attempts = {};     // stepId -> [command, command, ...] (full history)
       const reveals = [];      // stepIds where the player revealed the answer
-      const solvedLocal = {};  // stepId -> bool (client-side echo; server re-grades)
+      let downgraded = false;  // expert → comfortable drop (caps score at 'good')
+      steps.forEach((s) => { attempts[s.id] = []; });
 
       host.textContent = '';
       const banner = el('div', { class: 'term-banner', text:
@@ -625,7 +1051,8 @@
       const helpBox = el('div', { class: 'term-help' });
       const inputRow = el('div', { class: 'term-input-row' });
       const input = el('input', { class: 'term-input', type: 'text', autocomplete: 'off',
-        spellcheck: 'false', placeholder: 'type a command and press Enter' });
+        autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false',
+        placeholder: isMobile() ? 'tap a command above, or type here' : 'type a command and press Enter' });
       const promptSpan = el('span', { class: 'term-prompt', text: cfg.prompt + ' ' });
 
       function print(line, cls) {
@@ -636,73 +1063,164 @@
         String(text).split('\\n').forEach((l) => print(l, cls));
       }
 
+      // The EFFECTIVE level drives how much help is shown. Starts at the chosen
+      // level; an expert who drops difficulty becomes 'comfortable'.
+      function effectiveLevel() {
+        return (level === 'expert' && downgraded) ? 'comfortable' : level;
+      }
+
       function loadStep() {
         if (idx >= steps.length) return finish();
         const s = steps[idx];
         taskBox.textContent = '';
         taskBox.appendChild(el('span', { class: 'term-step-num', text: 'STEP ' + (idx + 1) + '/' + steps.length + ' — ' }));
         taskBox.appendChild(document.createTextNode(s.task));
-        helpBox.textContent = '';
-        if (level === 'guided') {
-          helpBox.appendChild(el('div', { class: 'term-guide' }, [
-            el('div', {}, [el('span', { class: 'term-cmd-hint', text: s.canonical })]),
-            el('div', { class: 'term-explain', text: s.explain }),
-          ]));
-        } else if (level === 'comfortable') {
-          const pal = el('div', { class: 'term-palette' },
-            (s.palette || []).map((c) =>
-              el('button', { class: 'term-pal-btn', onClick: () => { input.value = c; input.focus(); } }, [c]),
-            ),
-          );
-          const reveal = el('button', { class: 'term-reveal', onClick: () => {
-            if (reveals.indexOf(s.id) < 0) reveals.push(s.id);
-            input.value = s.canonical;
-            input.focus();
-            print('(revealed: ' + s.canonical + ')', 'term-dim');
-          }, text: 'reveal answer' });
-          helpBox.appendChild(el('div', { class: 'term-help-row' }, [
-            el('span', { class: 'mg-label', text: 'commands: ' }), pal,
-          ]));
-          helpBox.appendChild(reveal);
-        }
-        // expert: no help shown.
+        renderHelp(s);
         input.value = '';
         input.focus();
       }
 
-      function matchesStep(s, raw) {
-        // Light client-side check just for the live echo/feedback.
-        const norm = (raw || '').replace(/[\u2018\u2019\u201C\u201D]/g, "'").replace(/"/g, "'")
-          .toLowerCase().replace(/\s+/g, ' ').replace(/\s*;\s*$/, '').trim();
-        // We don't have the answer key on the client, so accept the canonical
-        // (and a couple of obvious equivalents) for the echo; the SERVER is the
-        // real grader on submit.
-        const canon = s.canonical.replace(/"/g, "'").toLowerCase().replace(/\s+/g, ' ').trim();
-        return norm === canon || norm.indexOf(canon.split(' ')[0]) === 0 && norm.length >= canon.split(' ')[0].length
-          ? norm === canon
-          : false;
+      // A palette of candidate commands rendered as large tap targets. Tapping
+      // one RUNS it (no keyboard needed) — this is what makes the terminal
+      // playable on a phone. `tapRuns` true = submit on tap; false = just fill
+      // the input (desktop convenience). Grading is identical either way (the
+      // server classifies whatever command is submitted).
+      function commandPalette(s, tapRuns) {
+        return el('div', { class: 'term-palette' + (tapRuns ? ' term-palette-tap' : '') },
+          (s.palette || []).map((c) =>
+            el('button', {
+              class: 'term-pal-btn',
+              onClick: () => {
+                if (tapRuns) { runCommand(c); }
+                else { input.value = c; input.focus(); }
+              },
+            }, [c]),
+          ),
+        );
       }
 
-      function submitLine() {
-        const s = steps[idx];
-        const raw = input.value.trim();
+      function renderHelp(s) {
+        const lvl = effectiveLevel();
+        // On touch devices, tapping a command should RUN it (typing a full Linux
+        // command on a soft keyboard is impractical). On desktop, the palette
+        // fills the input so people can still type/edit, except in guided mode
+        // where tapping-to-run is a nice accessibility convenience.
+        const tapRuns = isMobile();
+        helpBox.textContent = '';
+        if (lvl === 'guided') {
+          // The walkthrough (the canonical command + its explanation) is the
+          // answer, so it stays hidden behind a collapsed drop-down until the
+          // player chooses to reveal it — this makes them read the fresh task
+          // first. Opening it carries NO penalty: the whole point of guided
+          // mode is that help is free and a perfect score is still reachable.
+          // Collapsed by default, and it resets closed on each new step because
+          // renderHelp rebuilds it every time.
+          helpBox.appendChild(el('details', { class: 'term-walkthrough' }, [
+            el('summary', { text: 'Show the walkthrough for this step' }),
+            el('div', { class: 'term-guide' }, [
+              el('div', {}, [el('span', { class: 'term-cmd-hint', text: s.canonical })]),
+              el('div', { class: 'term-explain', text: s.explain }),
+            ]),
+          ]));
+          // Tap-to-run palette stays visible so a phone user can answer by
+          // tapping without opening the walkthrough (the palette includes
+          // distractors, so it is not itself the answer).
+          helpBox.appendChild(el('div', { class: 'term-help-row' }, [
+            el('span', { class: 'mg-label', text: isMobile() ? 'tap to run: ' : 'or tap: ' }),
+            commandPalette(s, tapRuns || true /* guided always tap-runs */),
+          ]));
+        } else if (lvl === 'comfortable') {
+          const reveal = el('button', { class: 'term-reveal', onClick: () => {
+            if (reveals.indexOf(s.id) < 0) reveals.push(s.id);
+            if (isMobile()) {
+              print('(revealed: ' + s.canonical + ')', 'term-dim');
+              runCommand(s.canonical);
+            } else {
+              input.value = s.canonical;
+              input.focus();
+              print('(revealed: ' + s.canonical + ')', 'term-dim');
+            }
+          }, text: isMobile() ? 'reveal & run answer' : 'reveal answer' });
+          helpBox.appendChild(el('div', { class: 'term-help-row' }, [
+            el('span', { class: 'mg-label', text: tapRuns ? 'tap to run: ' : 'commands: ' }),
+            commandPalette(s, tapRuns),
+          ]));
+          helpBox.appendChild(reveal);
+          if (downgraded) {
+            helpBox.appendChild(el('p', { class: 'term-downgraded', text:
+              '⚠ Help mode on — your ceiling for this challenge is now GOOD (not perfect).' }));
+          }
+        } else {
+          // expert: bare prompt on desktop. On a phone, typing isn't practical,
+          // so expert still shows a tap-to-run palette (the challenge is that
+          // it's unlabeled — no explanation, no reveal — unless you drop down).
+          if (isMobile()) {
+            helpBox.appendChild(el('div', { class: 'term-help-row' }, [
+              el('span', { class: 'mg-label', text: 'tap to run: ' }),
+              commandPalette(s, true),
+            ]));
+          }
+          // offer the option to drop a difficulty for hints.
+          const drop = el('button', { class: 'term-drop', onClick: () => {
+            if (downgraded) return;
+            downgraded = true;
+            print('⚠ dropped to COMFORTABLE — hints enabled; max score is now GOOD.', 'term-dim');
+            renderHelp(s);
+            if (!isMobile()) input.focus();
+          }, text: 'stuck? drop to Comfortable (hints on · caps score at GOOD)' });
+          helpBox.appendChild(drop);
+        }
+      }
+
+      // Ask the SERVER to classify the typed command (it holds the answer key).
+      // Returns { kind, output?, hint? }. On any error, fall back to a neutral
+      // "try again" so the game never blocks.
+      async function classify(stepId, command) {
+        try {
+          return await api('/api/game/' + state.game.sessionId + '/terminal', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ eventId: ev.id, minigameId: ev.minigame.id, stepId, command }),
+          });
+        } catch (e) {
+          return { kind: 'error' };
+        }
+      }
+
+      // Run a command for the current step — shared by the Enter key (typed)
+      // and by tapping a command button (mobile-friendly, no keyboard needed).
+      async function runCommand(raw) {
+        raw = (raw || '').trim();
         if (!raw) return;
+        const s = steps[idx];
         print(cfg.prompt + ' ' + raw);
-        typed[s.id] = raw;
-        const ok = matchesStep(s, raw);
-        if (ok) {
-          printMulti(s.output, 'term-out');
-          solvedLocal[s.id] = true;
+        attempts[s.id].push(raw);
+        input.disabled = true;
+        const verdict = await classify(s.id, raw);
+        input.disabled = false;
+
+        if (verdict.kind === 'accepted') {
+          printMulti(verdict.output || s.output, 'term-out');
           print('✓ nice — that\u2019s the right tool for this step.', 'term-ok');
           idx += 1;
           setTimeout(loadStep, 150);
+        } else if (verdict.kind === 'partial') {
+          // Right tool, wrong form — targeted nudge, small recoverable cost.
+          print('➤ ' + (verdict.hint || 'Right idea, but refine the command.'), 'term-warn');
+        } else if (verdict.kind === 'rejected') {
+          // Plausible but wrong for THIS task — specific teaching explanation.
+          print('✗ ' + (verdict.hint || 'That command doesn\u2019t answer this step.'), 'term-warn');
         } else {
-          // Let them try again; expert/comfortable get a nudge to retry or (comfortable) reveal.
+          const lvl = effectiveLevel();
           print('Hmm, that didn\u2019t surface what you need. Try another command'
-            + (level === 'expert' ? '.' : (level === 'comfortable' ? ' (or use the palette / reveal).' : ' — check the suggested command above.')), 'term-dim');
-          // Still record their last attempt in `typed`; they can retry.
+            + (lvl === 'expert' ? '.' : (lvl === 'comfortable' ? ' (or tap a command / reveal).' : ' — check the suggested command above.')), 'term-dim');
         }
+        input.value = '';
+        input.focus();
       }
+
+      // Enter-key handler: read the typed input and run it.
+      function submitLine() { runCommand(input.value); }
 
       function finish() {
         print('— investigation complete —', 'term-ok');
@@ -720,11 +1238,13 @@
       inputRow.appendChild(input);
       host.appendChild(inputRow);
       host.appendChild(helpBox);
-      // Submit/Skip. Submit sends the whole result; the server grades it.
+      // Submit/Skip. Submit sends the full attempt history; the server grades it
+      // (per-step credit, careless-attempt deductions, downgrade cap).
       host.appendChild(miniGameButtons(ev, () => ({
         level: level,
-        steps: typed,
+        attempts: attempts,
         reveals: reveals.slice(),
+        downgraded: downgraded,
       })));
 
       print(cfg.scenario, 'term-dim');
@@ -773,14 +1293,14 @@
 
     const nodes = [
       el('div', { class: 'stage-bar', text: '◢ DEBRIEF — ' + (o.eventTitle || '') }),
-      hud(g),
-      el('div', { class: 'panel debrief' }, [
+      gameLayout(g, el('div', { class: 'panel debrief' }, [
         el('span', { class: 'badge ' + (o.isRecommended ? 'ok' : 'no'),
           text: o.band
             ? (o.skipped ? '⤼ Skipped — ' : '') +
               ({ perfect: '★ PERFECT', good: '✓ GOOD', fail: '✗ FAILED' }[o.band] || o.band)
             : (o.isRecommended ? '✓ Strong security decision' : '✗ Risky decision') }),
         el('p', { class: 'prompt-text', text: o.outcome }),
+        meterExplain(o),
         reviewBlock(o),
         el('hr'),
         el('p', { class: 'eyebrow', text: '// THREAT INTEL' }),
@@ -793,7 +1313,7 @@
         ),
         L.mitreAttck ? el('p', { class: 'meta', text: 'MITRE ATT&CK: ' + L.mitreAttck }) : null,
         glossaryBlock(o.glossary),
-      ]),
+      ]), o.deltas),
     ];
 
     const next = g.status === 'in_progress'
@@ -816,14 +1336,24 @@
           ? 'You guided your facility through the gauntlet. The lights stayed on, ' +
             'the systems stayed clean, and your people stayed sharp. This is what ' +
             'defense in depth looks like.'
-          : 'A meter hit zero — a breach or outage you could not recover from. In ' +
-            'critical infrastructure the stakes are real. Study the debriefs, learn ' +
-            'the preventive measures, and run the trail again.' }),
+          : g.loseReason === 'funding'
+            ? 'You skipped securing funding — and because the rest of your run ' +
+              'wasn\u2019t flawless, there was no margin to make up for it. Without ' +
+              'the budget to back it, your defense couldn\u2019t do its job. Funding ' +
+              'is a security control: pursue it unless you can afford perfection ' +
+              'everywhere else.'
+            : 'A meter hit the danger threshold — a breach or outage you could ' +
+              'not recover from. In critical infrastructure the stakes are real. ' +
+              'Study the debriefs, learn the preventive measures, and run the ' +
+              'trail again.' }),
         el('p', { class: 'score', text: 'FINAL SCORE: ' + g.score }),
         hud(g),
         el('div', { class: 'btn-row', style: 'justify-content:center' }, [
-          el('button', { class: 'btn', onClick: () => { state.game = null; titleScreen(); }, text: '↺ Play Again' }),
-          el('button', { class: 'btn secondary', onClick: () => { state.facilityId = null; state.roleId = null; startFlow(); }, text: '⇄ New Facility / Role' }),
+          // Both paths start a brand-new run via startGame(), which re-initializes
+          // ALL resources (including budget) for the chosen facility — so playing
+          // a new facility without restarting the app fully resets the budget.
+          el('button', { class: 'btn', onClick: () => { resetRunState(); titleScreen(); }, text: '↺ Play Again' }),
+          el('button', { class: 'btn secondary', onClick: () => { resetRunState(); state.facilityId = null; state.roleId = null; startFlow(); }, text: '⇄ New Facility / Role' }),
         ]),
       ]),
     ]);

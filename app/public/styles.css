@@ -112,7 +112,7 @@ body::before {
 /* ---------------------------- typography ---------------------------- */
 .title {
   font-family: var(--font-mono);
-  font-size: clamp(2.2rem, 7vw, 4.2rem);
+  font-size: clamp(2rem, 6vw, 3.5rem);
   font-weight: 900;
   line-height: 0.95;
   letter-spacing: 0.02em;
@@ -152,11 +152,19 @@ body::before {
   filter: drop-shadow(0 0 16px rgba(91, 255, 122, 0.35));
 }
 .collab {
-  color: var(--blue);
-  font-size: 0.9rem;
+  display: inline-block;
+  color: var(--text);                 /* grey/white text */
+  font-size: 0.88rem;
+  font-weight: 600;
   margin: 0.4rem auto 1.4rem;
   max-width: 60ch;
-  line-height: 1.5;
+  line-height: 1.45;
+  /* Green callout box so the Marshall collaboration stands out. */
+  background: rgba(91, 255, 122, 0.14);
+  border: 1px solid var(--green);
+  border-radius: 5px;
+  padding: 0.5rem 0.9rem;
+  box-shadow: 0 0 14px rgba(91, 255, 122, 0.2);
 }
 
 /* Mascot image shown on the supervisor access gate */
@@ -266,8 +274,33 @@ body::before {
 }
 .choice .key { font-family: var(--font-mono); color: var(--blue); font-weight: 700; margin-right: 0.7rem; }
 
+/* ---------------------------- game layout (side-rail HUD + main) ---------------------------- */
+.game-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 1.2rem;
+  align-items: start;
+  text-align: left;
+}
+.game-main { min-width: 0; }
+/* Stack the rail above the main panel on narrow screens. */
+@media (max-width: 820px) {
+  .game-layout { grid-template-columns: 1fr; }
+}
+
 /* ---------------------------- HUD / resource meters ---------------------------- */
-.hud { display: grid; gap: 0.7rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 1.2rem; }
+.hud {
+  display: flex; flex-direction: column; gap: 0.7rem;
+  position: sticky; top: 1rem;
+  text-align: left;
+}
+@media (max-width: 820px) {
+  .hud { position: static; }
+}
+.hud-title {
+  font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.1em; color: var(--green); margin: 0 0 0.2rem;
+}
 .meter { background: rgba(12,17,28,0.9); border: 1px solid rgba(91,255,122,0.3); padding: 0.6rem 0.75rem; }
 .meter .label {
   display: flex; justify-content: space-between;
@@ -277,8 +310,27 @@ body::before {
   color: var(--dim);
 }
 .meter .label span:last-child { color: var(--text); }
+.meter-delta { font-weight: 700; }
+.meter-delta.up { color: var(--green); }
+.meter-delta.down { color: var(--red); }
 .meter .bar { height: 12px; margin-top: 0.4rem; background: rgba(255,255,255,0.1); overflow: hidden; border-radius: 2px; }
 .meter .fill { height: 100%; transition: width 0.5s ease; }
+
+/* Per-meter "what moves this?" explainer. */
+.meter-info { margin-top: 0.45rem; }
+.meter-info > summary {
+  cursor: pointer; list-style: none;
+  font-family: var(--font-mono); font-size: 0.72rem;
+  color: var(--blue); letter-spacing: 0.03em; user-select: none;
+}
+.meter-info > summary::-webkit-details-marker { display: none; }
+.meter-info > summary::after { content: " ▸"; }
+.meter-info[open] > summary::after { content: " ▾"; }
+.meter-info > summary:hover { color: var(--green); }
+.meter-info p { margin: 0.35rem 0 0; font-size: 0.8rem; line-height: 1.45; color: var(--dim); }
+.meter-info .mi-what { color: var(--text); }
+.mi-up { color: var(--green); font-weight: 700; }
+.mi-down { color: var(--red); font-weight: 700; }
 .fill.good { background: linear-gradient(90deg, var(--green), var(--blue)); box-shadow: 0 0 8px var(--green); }
 .fill.warn { background: linear-gradient(90deg, var(--warn), var(--purple)); box-shadow: 0 0 8px var(--warn); }
 .fill.bad  { background: linear-gradient(90deg, var(--red), var(--purple)); box-shadow: 0 0 8px var(--red); }
@@ -308,7 +360,7 @@ body::before {
 }
 /* Interactive / structured blocks stay left-aligned for readability. */
 .glossary, .review, .terminal-host, .term-screen, .term-task, .term-help,
-.mg-email, .mg-sort, .mg-options { text-align: left; }
+.mg-email, .mg-sort, .mg-options, .term-pinned { text-align: left; }
 .term-task, .term-input-row { text-align: left; }
 .debrief hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 1.1rem 0; }
 
@@ -462,9 +514,28 @@ body::before {
   background: rgba(91,255,122,0.12); padding: 0.15rem 0.5rem; border-radius: 3px;
 }
 .term-explain { color: var(--dim); font-size: 0.95rem; line-height: 1.55; margin-top: 0.4rem; }
+/* Tap-to-run palette: larger, clearly-tappable command buttons. Used as the
+   primary input on touch devices so the terminal is playable without typing. */
+.term-palette-tap { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.3rem; }
+.term-palette-tap .term-pal-btn {
+  font-size: 0.95rem;
+  padding: 0.6rem 0.8rem;
+  min-height: 44px;            /* comfortable touch target */
+  background: rgba(20,26,38,0.95);
+  border-color: rgba(77,181,255,0.55);
+}
+.term-palette-tap .term-pal-btn:active { background: rgba(91,255,122,0.18); color: var(--green); }
+
 @media (max-width: 600px) {
   .term-levels { grid-template-columns: 1fr; }
   .term-screen { height: 190px; font-size: 0.82rem; }
+  /* On phones the tap palette is the main way in; make buttons full-ish width
+     and the typed-input row visually secondary. */
+  .term-palette-tap { gap: 0.45rem; }
+  .term-palette-tap .term-pal-btn { flex: 1 1 100%; text-align: left; }
+  .term-input-row { opacity: 0.85; }
+  /* Import-terminal resize handle is fiddly on touch; give it more height. */
+  .term-resize { height: 16px; }
 }
 .term-import-screen { height: 160px; }
 
@@ -566,8 +637,12 @@ img, svg { max-width: 100%; height: auto; }
 
   .panel { padding: 1.1rem 1.1rem; }
 
-  /* Resource HUD: 2x2 grid on phones (was cramped at 4-across). */
-  .hud { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  /* Resource HUD: the rail stacks above the main panel on narrow screens
+     (see .game-layout). Lay the four meters out 2-across so they stay compact
+     rather than a tall single column pushing the scenario down the page. */
+  .hud { flex-direction: row; flex-wrap: wrap; gap: 0.6rem; }
+  .hud .meter { flex: 1 1 45%; }
+  .hud-title { flex: 1 1 100%; }
 
   /* Comfortable tap targets. */
   .btn { display: block; width: 100%; text-align: center; padding: 0.9rem 1rem; }
@@ -584,6 +659,249 @@ img, svg { max-width: 100%; height: auto; }
 
 /* Very small phones */
 @media (max-width: 380px) {
-  .hud { grid-template-columns: 1fr; }
+  .hud .meter { flex: 1 1 100%; } /* single column when truly narrow */
   .stage-bar { font-size: 0.82rem; }
 }
+
+/* ---------------------------- import intro (briefing) ---------------------------- */
+.intro-step {
+  margin: 1rem 0 0.4rem;
+  font-weight: 700;
+  color: var(--green);
+  text-align: left;
+}
+.intro-cmd {
+  text-align: left;
+  margin: 0.2rem 0 0.4rem;
+}
+.intro-cmd code {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  color: var(--green);
+  background: rgba(10, 16, 24, 0.9);
+  border: 1px solid rgba(91, 255, 122, 0.4);
+  padding: 0.4rem 0.7rem;
+  border-radius: 3px;
+}
+.intro-note {
+  margin-top: 1rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--blue);
+  background: rgba(10, 16, 24, 0.5);
+  color: var(--dim);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+/* ---------------------------- terminal: pinned header + resize ---------------------------- */
+.term-pinned {
+  background: rgba(8, 13, 20, 0.95);
+  border: 1px solid rgba(91, 255, 122, 0.35);
+  border-bottom: none;
+  padding: 0.55rem 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  border-radius: 3px 3px 0 0;
+}
+.term-pinned-title { color: var(--green); font-weight: 700; margin-bottom: 0.15rem; }
+.term-pinned-line { color: var(--dim); }
+.term-pinned-line .term-ok { color: var(--green); }
+.term-import-screen { min-height: 160px; }
+/* Drag handle to resize the terminal output area. */
+.term-resize {
+  height: 10px;
+  margin: 0 0 0.4rem;
+  cursor: ns-resize;
+  background:
+    repeating-linear-gradient(90deg, rgba(91,255,122,0.4) 0 8px, transparent 8px 16px);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 48px 3px;
+  border: 1px solid rgba(91, 255, 122, 0.25);
+  border-top: none;
+  border-radius: 0 0 3px 3px;
+}
+.term-resize:hover { background-color: rgba(91, 255, 122, 0.08); }
+
+/* ---------------------------- terminal: feedback + difficulty controls ---------------------------- */
+.term-warn { color: var(--warn); }
+.term-drop {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--warn);
+  background: rgba(10, 16, 24, 0.8);
+  border: 1px solid var(--warn);
+  padding: 0.4rem 0.7rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.term-drop:hover { background: rgba(255, 190, 90, 0.12); }
+.term-downgraded {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--warn);
+}
+
+/* ---------------------------- inline acronym popovers ---------------------------- */
+/* An acronym rendered inline in a prompt as a tappable chip. Uses a dotted
+   underline + accent so it reads as interactive without shouting. */
+.acro {
+  position: relative;
+  display: inline;
+  font: inherit;
+  color: var(--blue);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: help;
+  font-weight: 700;
+  border-bottom: 1px dotted var(--blue);
+  white-space: nowrap;
+}
+.acro:hover, .acro:focus-visible { color: var(--green); border-bottom-color: var(--green); outline: none; }
+/* The deeper OT/networking terms get a subtly stronger accent (purple) so they
+   read as "there's more here." */
+.acro-deep { color: var(--purple); border-bottom-color: var(--purple); }
+.acro-deep:hover, .acro-deep:focus-visible { color: var(--green); border-bottom-color: var(--green); }
+
+/* The on-demand definition popover anchored to the chip. */
+.acro-pop {
+  position: absolute;
+  left: 0;
+  top: 1.6em;
+  z-index: 40;
+  display: block;
+  width: max-content;
+  max-width: min(340px, 86vw);
+  text-align: left;
+  white-space: normal;
+  background: rgba(8, 13, 20, 0.98);
+  border: 1px solid rgba(77, 181, 255, 0.55);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  padding: 0.6rem 0.75rem;
+  font-weight: 400;
+}
+.acro-deep .acro-pop { border-color: rgba(169, 123, 255, 0.6); }
+.acro-pop-term {
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--green);
+  font-size: 0.86rem;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.2rem;
+}
+.acro-pop-def { display: block; color: var(--text); font-size: 0.9rem; line-height: 1.5; }
+.acro-pop-use {
+  display: block;
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--dim);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.acro-pop-use-label { color: var(--purple); font-weight: 700; }
+
+/* "In practice" note inside the bottom glossary (mirrors the popover). */
+.glossary-use {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--dim);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.glossary-use-label { color: var(--purple); font-weight: 700; }
+
+/* ---------------------------- spot-the-phish: known-good reference ---------------------------- */
+/* A "what you already know is legitimate" note shown above the suspicious
+   message, so look-alike red flags (e.g. a .co vs .com domain) are fairly
+   detectable by comparison rather than by guessing. */
+.mg-knowngood {
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--green);
+  background: rgba(16, 28, 22, 0.6);
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  text-align: left;
+}
+.mg-knowngood-mark { color: var(--green); font-weight: 700; }
+
+/* ---------------------------- "why your meters moved" explainer ---------------------------- */
+/* Ties the debrief to the side-rail meter changes: shows which band the player
+   hit and the better/worse bands, so it's clear where negative points come
+   from (dropping a band) and what a clean run would have earned. */
+.meter-why {
+  margin: 0.4rem 0 0.9rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(77, 181, 255, 0.4);
+  border-left: 3px solid var(--blue);
+  background: rgba(10, 16, 24, 0.55);
+  text-align: left;
+}
+.meter-why-lead {
+  margin: 0 0 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+.meter-why-sub { margin: 0 0 0.5rem; color: var(--text); font-size: 0.95rem; line-height: 1.5; }
+.meter-why-list { list-style: none; margin: 0; padding: 0; }
+.meter-why-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.3rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  border-radius: 3px;
+}
+.meter-why-row.you {
+  background: rgba(77, 181, 255, 0.12);
+  outline: 1px solid rgba(77, 181, 255, 0.4);
+}
+.meter-why-band { min-width: 6.5rem; font-weight: 700; color: var(--dim); }
+.meter-why-row.you .meter-why-band { color: var(--blue); }
+.meter-why-eff { color: var(--text); }
+.meter-why-eff.pos { color: var(--green); font-weight: 700; }
+.meter-why-eff.neg { color: var(--red); font-weight: 700; }
+.meter-why-tag { color: var(--blue); font-weight: 700; }
+.meter-why-note { margin: 0.55rem 0 0; color: var(--dim); font-size: 0.86rem; line-height: 1.45; }
+
+/* ---------------------------- guided-mode walkthrough drop-down ---------------------------- */
+/* In "New to Linux" mode the answer (canonical command + explanation) is hidden
+   behind this collapsed drop-down so the player reads the task first. Opening it
+   is free (no score penalty) — guided mode is meant to be fully helpful. */
+.term-walkthrough {
+  margin: 0.3rem 0 0.6rem;
+  border: 1px solid rgba(91, 255, 122, 0.35);
+  border-left: 3px solid var(--green);
+  background: rgba(10, 16, 24, 0.5);
+  border-radius: 3px;
+}
+.term-walkthrough > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--green);
+  user-select: none;
+}
+.term-walkthrough > summary::-webkit-details-marker { display: none; }
+.term-walkthrough > summary::before { content: "▸ "; }
+.term-walkthrough[open] > summary::before { content: "▾ "; }
+.term-walkthrough > summary:hover { color: var(--green-soft); }
+.term-walkthrough .term-guide { border-left: none; padding: 0 0.75rem 0.7rem; }

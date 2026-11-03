@@ -29,42 +29,47 @@ const MINIGAMES = {
       instructions:
         'Click every suspicious element in this email, then submit. Find the ' +
         'red flags a phishing message hides.',
+      // Known-good reference so the look-alike sender is actually DETECTABLE —
+      // the player can compare against the real domain instead of guessing.
+      knownGood:
+        'What you already know: your real billing vendor\u2019s domain is ' +
+        '"blackwater-billing.com", and legitimate invoices address you by name.',
       from: 'Accounts Payable <billing@blackwater-billing.co>',
-      subject: 'URGENT: unpaid invoice — act within 2 hours',
+      subject: 'unpaid invoice — act within 2 hours or your account is suspended',
       // Each token has an id; "suspicious" ones are the answer key (hidden).
       tokens: [
         { id: 't1', text: 'billing@blackwater-billing.co' },
-        { id: 't2', text: 'URGENT' },
-        { id: 't3', text: 'within 2 hours or your account is suspended' },
+        { id: 't3', text: 'act within 2 hours or your account is suspended' },
         { id: 't4', text: 'Dear Valued Customer' },
         { id: 't5', text: 'Click here to view your invoice' },
         { id: 't6', text: 'Thank you for your business' },
       ],
     },
     answer: {
-      suspicious: ['t1', 't2', 't3', 't4', 't5'], // 5 of 6 are red flags
+      suspicious: ['t1', 't3', 't4', 't5'], // 4 of 5 are red flags
     },
     grades: {
       perfect: {
         effects: [{ key: 'integrity', amount: 8 }, { key: 'morale', amount: 2 }],
         outcome:
-          'You caught the look-alike domain, the manufactured urgency, the ' +
-          'generic greeting, and the deceptive link — then reported it. A ' +
-          'textbook catch that protects everyone.',
+          'You caught the look-alike domain (".co" vs the real ".com"), the ' +
+          'manufactured urgency backed by a threat, the generic greeting, and ' +
+          'the deceptive link — then reported it. A textbook catch that ' +
+          'protects everyone.',
       },
       good: {
         effects: [{ key: 'integrity', amount: 3 }],
         outcome:
           'You spotted most of the red flags — enough to be suspicious and not ' +
-          'click. Train your eye on the ones you missed (the sender domain is ' +
-          'the biggest tell).',
+          'click. The biggest tell: compare the sender to the domain you know ' +
+          'is real ("blackwater-billing.com") and the ".co" look-alike stands out.',
       },
       fail: {
         effects: [{ key: 'integrity', amount: -20 }, { key: 'morale', amount: -4 }],
         outcome:
           'You missed the red flags that mattered. This is exactly the message ' +
-          'that harvests credentials — the mismatched domain, the urgency, and ' +
-          'the link were the giveaways.',
+          'that harvests credentials — the mismatched domain (".co", not the ' +
+          'real ".com"), the urgency-plus-threat, and the link were the giveaways.',
       },
     },
   },
@@ -76,11 +81,16 @@ const MINIGAMES = {
       instructions:
         'This "safety bulletin" wants you to log in. Click every suspicious ' +
         'element, then submit.',
+      // Known-good reference so the look-alike sender is detectable by comparison.
+      knownGood:
+        'What you already know: your real safety bulletins come from the ' +
+        '"cascade-gas.com" intranet, and they never ask you to log in from a ' +
+        'link.',
       from: 'Pipeline Safety <alerts@cascade-gas-safety.net>',
       subject: 'MANDATORY acknowledgment required within the hour',
       tokens: [
         { id: 't1', text: 'alerts@cascade-gas-safety.net' },
-        { id: 't2', text: 'MANDATORY … within the hour' },
+        { id: 't2', text: 'MANDATORY acknowledgment required within the hour' },
         { id: 't3', text: 'or be flagged non-compliant' },
         { id: 't4', text: 'Sign in here to confirm you have read this' },
         { id: 't5', text: 'Q3 compressor maintenance schedule' },
@@ -91,15 +101,15 @@ const MINIGAMES = {
       perfect: {
         effects: [{ key: 'integrity', amount: 8 }, { key: 'morale', amount: 2 }],
         outcome:
-          'You flagged the wrong domain, the compliance-deadline pressure, and ' +
-          'the login link. Safety themes are bait in industrial settings — and ' +
-          'you did not bite.',
+          'You flagged the look-alike domain (not your real "cascade-gas.com"), ' +
+          'the compliance-deadline pressure and its threat, and the login link. ' +
+          'Safety themes are bait in industrial settings — and you did not bite.',
       },
       good: {
         effects: [{ key: 'integrity', amount: 3 }],
         outcome:
-          'Enough red flags spotted to stay safe. The sending domain ' +
-          '("cascade-gas-safety.net", not your real intranet) was the key tell.',
+          'Enough red flags spotted to stay safe. The key tell: the sender ' +
+          '("cascade-gas-safety.net") is not your real "cascade-gas.com" intranet.',
       },
       fail: {
         effects: [{ key: 'integrity', amount: -18 }, { key: 'morale', amount: -3 }],
@@ -210,6 +220,10 @@ const MINIGAMES = {
       instructions:
         'This "open enrollment" email wants you to log in. Click every ' +
         'suspicious element, then submit.',
+      // Known-good reference so the look-alike HR domain is detectable.
+      knownGood:
+        'What you already know: St. Mercy\u2019s real HR portal is at "stmercy.org", ' +
+        'and you always reach it from your own bookmark — never from an email link.',
       from: 'HR Benefits <benefits@stmercy-hr-portal.com>',
       subject: 'ACTION REQUIRED: confirm benefits before enrollment closes TONIGHT',
       tokens: [
@@ -232,34 +246,49 @@ const MINIGAMES = {
       good: {
         effects: [{ key: 'integrity', amount: 3 }],
         outcome:
-          'Enough red flags caught to stay safe. The sending domain and the ' +
-          'manufactured deadline were the biggest tells.',
+          'Enough red flags caught to stay safe. The biggest tell: the sender ' +
+          '("stmercy-hr-portal.com") is not the real "stmercy.org" HR portal.',
       },
       fail: {
         effects: [{ key: 'integrity', amount: -20 }, { key: 'morale', amount: -4 }],
         outcome:
-          'The deadline pressure worked and credentials were harvested. Always ' +
-          'reach the real portal from your own bookmark, never an email link.',
+          'The deadline pressure worked and credentials were harvested. The ' +
+          'sender was a look-alike ("stmercy-hr-portal.com", not "stmercy.org") — ' +
+          'always reach the real portal from your own bookmark, never an email link.',
       },
     },
   },
 
   // ───────── Spot the Deepfake: red flags in a "viral" video ─────────
+  // Reuses the spot_the_phish renderer, but this is NOT an email — it is a
+  // social-media post. The header carries the post's source/claim (real,
+  // useful context for judging it), the known-good line states how a REAL
+  // emergency order would reach you, and the tokens are the tell-tale signs to
+  // select. Framed honestly as "select the signs this is fake."
   spot_the_deepfake: {
     type: 'spot_the_phish',
     attackType: 'AI Exploitation / Deepfake Disinformation',
     config: {
       instructions:
-        'A viral "emergency" video of an official is going around. Click every ' +
-        'red flag that suggests it is an AI deepfake, then submit.',
-      from: 'Posted by: @breaking_alerts_2am (unverified account)',
-      subject: 'Clip: "County orders immediate evacuation — share now!"',
+        'A viral "emergency" video of a county official is spreading on social ' +
+        'media. Review the post below and select every sign that it is an AI ' +
+        'deepfake / disinformation, then submit.',
+      // Known-good reference so "it\u2019s not on official channels" is a fair,
+      // checkable tell rather than a guess.
+      knownGood:
+        'What you already know: a real emergency order is published on the ' +
+        'county\u2019s official website and verified alert channels — never only on ' +
+        'an anonymous social post.',
+      fromLabel: 'Source',
+      subjectLabel: 'Claim',
+      from: '@breaking_alerts_2am (unverified account, created today)',
+      subject: '"County orders immediate evacuation — share now!"',
       tokens: [
         { id: 't1', text: 'Posted only by an unverified, brand-new account' },
-        { id: 't2', text: 'Not on any official county channel or website' },
+        { id: 't2', text: 'Appears on no official county channel or website' },
         { id: 't3', text: 'Mouth movements and audio are slightly out of sync' },
-        { id: 't4', text: 'Urges you to "share now" before verifying' },
-        { id: 't5', text: 'The official is a real person who exists' },
+        { id: 't4', text: 'Pressures you to "share now" before verifying' },
+        { id: 't5', text: 'The official shown is a real, well-known person' },
       ],
     },
     answer: { suspicious: ['t1', 't2', 't3', 't4'] },
@@ -275,9 +304,11 @@ const MINIGAMES = {
       good: {
         effects: [{ key: 'integrity', amount: 3 }],
         outcome:
-          'Good eye on most red flags. The strongest tell is simple: a real ' +
+          'Good eye on most of the signs. The strongest tell is simple: a real ' +
           'emergency order appears on official, authenticated channels — not ' +
-          'only on an anonymous account.',
+          'only on an anonymous account. (And note: the official being a real ' +
+          'person does NOT make the clip real — that is exactly what a deepfake ' +
+          'impersonates.)',
       },
       fail: {
         effects: [{ key: 'integrity', amount: -18 }, { key: 'morale', amount: -5 }],
@@ -576,6 +607,48 @@ const MINIGAMES = {
           'netstat -tunap', 'netstat -tulnp', 'netstat -an', 'netstat -tulpn', 'netstat',
         ],
       },
+      // "Right tool, wrong form" — the command is on the right track but
+      // incomplete for the task. Grading gives a targeted nudge and a small,
+      // recoverable deduction (the player can still type the full command and
+      // earn the step's points minus the carelessness penalty). Hidden.
+      partial: {
+        step_ls: [
+          { match: ['ls', 'ls -l', 'ls -a', 'dir'],
+            hint: 'Right command — but plain `ls` hides the files that matter. ' +
+              'Add flags to show ALL entries (including dotfiles) in LONG form, ' +
+              'e.g. `ls -la`. Attackers hide droppers as dot-files.' },
+        ],
+        step_grep: [
+          { match: ['cat /var/log/auth.log', 'less /var/log/auth.log', 'more /var/log/auth.log'],
+            hint: 'That opens the whole log — right file, but you need to FILTER ' +
+              'it. Use `grep` to pull just the "Failed password" lines so the ' +
+              'brute force stands out, e.g. `grep "Failed password" /var/log/auth.log`.' },
+        ],
+      },
+      // "Plausible but wrong" — commands a learner might reach for that do NOT
+      // answer THIS step's question. Grading rejects them with a specific
+      // teaching explanation (not a generic error) and the same small,
+      // recoverable deduction once the player corrects. Hidden.
+      rejected: {
+        step_who: [
+          { match: ['whoami', 'id', 'echo $user', 'echo $us-er'],
+            why: '`whoami` (and `id`) print only YOUR OWN identity — they can\u2019t ' +
+              'reveal the intruder. To see every session on the box, including ' +
+              'the rogue root login from an unknown IP, use `who` (or `w`).' },
+        ],
+        step_ps: [
+          { match: ['ls -la', 'ls', 'jobs'],
+            why: '`jobs`/`ls` only show this shell\u2019s background jobs or files — ' +
+              'not every process on the system. To find a CPU-pegging malicious ' +
+              'process you need the full process table: `ps aux` (or `top`).' },
+        ],
+        step_ss: [
+          { match: ['ping', 'ifconfig', 'ip a', 'ip addr'],
+            why: '`ping`/`ifconfig` test or describe YOUR interface — they don\u2019t ' +
+              'list active connections. To spot the command-and-control link you ' +
+              'need the socket table: `ss -tunap` (or `netstat -tunap`).' },
+        ],
+      },
     },
     // Reward bands. "Perfect" is reachable at any comfort level (guidance only
     // changes help, not the ceiling). Reveals in comfortable mode cost a little.
@@ -710,6 +783,57 @@ const MINIGAMES = {
       },
     },
   },
+
+  // ───────────────── Fund the Defense (grant / funding request) ─────────────────
+  // SUPERVISOR mini-game. Unlike every other mini-game (which at best protects a
+  // meter), this one can EARN budget: a well-built funding/grant request brings
+  // money IN. Player picks the elements of a strong, fundable request and avoids
+  // the weak ones. Teaches that defense is paid for by funding, and funding is
+  // won with risk-based evidence, not flashy asks.
+  fund_the_defense: {
+    type: 'pick_practices',
+    attackType: 'Security Funding / Grant Strategy',
+    config: {
+      instructions:
+        'Build the strongest case for a cybersecurity funding / grant request. ' +
+        'Select every element that makes a request fundable, and avoid the weak ' +
+        'ones. A strong request EARNS budget for the facility. Submit when ready.',
+      options: [
+        { id: 'o1', text: 'Map each requested dollar to a specific risk it reduces' },
+        { id: 'o2', text: 'Document real gaps, incidents, and near-misses as evidence' },
+        { id: 'o3', text: 'Apply for the matching grant and the board\u2019s matching funds' },
+        { id: 'o4', text: 'Ask for a big round number with no justification' },
+        { id: 'o5', text: 'Center the whole request on one flashy hardware purchase' },
+        { id: 'o6', text: 'Exaggerate incidents to make the need look bigger' },
+      ],
+    },
+    answer: { good: ['o1', 'o2', 'o3'], bad: ['o4', 'o5', 'o6'] },
+    grades: {
+      // NOTE: budget-POSITIVE on success — this is the facility's way to earn
+      // money back. Perfect brings in a meaningful grant + board match.
+      perfect: {
+        effects: [{ key: 'budget', amount: 30 }, { key: 'morale', amount: 3 }],
+        outcome:
+          'A textbook funding case: every dollar tied to a specific risk, backed ' +
+          'by real evidence, and paired with grant + board matching. The money ' +
+          'came in — and funded defense is defense that actually happens.',
+      },
+      good: {
+        effects: [{ key: 'budget', amount: 12 }],
+        outcome:
+          'A solid request that won some funding. The strongest cases tie every ' +
+          'dollar to a specific risk, use real incident evidence, and chase every ' +
+          'grant and matching-fund source available.',
+      },
+      fail: {
+        effects: [{ key: 'budget', amount: -12 }],
+        outcome:
+          'The request fell flat. Unjustified round numbers, one-shiny-box asks, ' +
+          'and exaggerated claims are exactly what funders reject — leaving the ' +
+          'facility to defend itself on a shoestring.',
+      },
+    },
+  },
 };
 
 /**
@@ -739,6 +863,8 @@ const EVENT_MINIGAMES = {
   // Segment the network (IT/OT zone assignment)
   it_ot_convergence_gas: 'segment_network_zones',
   ot_segmentation_water: 'segment_network_zones',
+  // Fund the defense (supervisor funding/grant request — can EARN budget)
+  funding_grants_supervisor: 'fund_the_defense',
 };
 
 function miniGameIdForEvent(eventId) {
@@ -773,6 +899,150 @@ function publicMiniGame(id, def) {
 
 function getMiniGame(id) {
   return MINIGAMES[id];
+}
+
+// Per-step deduction (0..1) for a careless attempt — "right tool, wrong flags"
+// or a plausible-but-wrong command — that the player then corrected. Small and
+// recoverable: you still earn the step, minus this. See HANDOFF / design notes.
+const TERMINAL_CARELESS_DEDUCTION = 0.15;
+// Reveal (comfortable mode) costs a little more than a careless retry.
+const TERMINAL_REVEAL_DEDUCTION = 0.2;
+
+/**
+ * Classify a single typed command for a terminal step against the hidden key.
+ * Returns one of: 'accepted' | 'partial' | 'rejected' | 'unknown'.
+ * `partial`/`rejected` also return the teaching text so the client can show a
+ * targeted nudge (the client never holds the key; it only learns about a
+ * command it actually typed, after the server tells it).
+ */
+function classifyTerminalCommand(def, stepId, raw) {
+  const typed = normalizeCmd(raw);
+  if (!typed) return { kind: 'unknown' };
+  const ans = def.answer || {};
+  const accepted = (ans.accepted && ans.accepted[stepId]) || [];
+  if (accepted.map(normalizeCmd).indexOf(typed) >= 0) return { kind: 'accepted' };
+  const partial = (ans.partial && ans.partial[stepId]) || [];
+  for (const p of partial) {
+    if (matchesAny(typed, p.match)) return { kind: 'partial', text: p.hint };
+  }
+  const rejected = (ans.rejected && ans.rejected[stepId]) || [];
+  for (const r of rejected) {
+    if (matchesAny(typed, r.match)) return { kind: 'rejected', text: r.why };
+  }
+  return { kind: 'unknown' };
+}
+
+/**
+ * Match a normalized command against a list of patterns. A pattern matches
+ * either exactly, or as a whole-word command prefix (so `ping 8.8.8.8` matches
+ * the pattern `ping`), but never a partial word (so `pingx` does NOT match
+ * `ping`). Used only for partial/rejected teaching hints — never for grading.
+ */
+function matchesAny(typed, patterns) {
+  for (const raw of patterns || []) {
+    const pat = normalizeCmd(raw);
+    if (!pat) continue;
+    if (typed === pat) return true;
+    if (typed === pat || typed.indexOf(pat + ' ') === 0) return true;
+  }
+  return false;
+}
+
+/**
+ * Grade the terminal mini-game from per-step ATTEMPT HISTORY. The client submits
+ * `attempts` = { stepId: ["cmd1", "cmd2", ...] } (every command the player ran
+ * for that step, in order) plus `reveals` (steps where they revealed the answer)
+ * and `downgraded` (whether they dropped difficulty from expert).
+ *
+ * Trust boundary: the server RE-DERIVES the outcome of every step from the hidden
+ * answer key. The client cannot claim full credit — the deduction for a careless
+ * attempt (wrong flags / plausible-but-wrong before the correct command) and the
+ * reveal penalty are computed here, from the real attempt log. A `downgraded` run
+ * is capped at the 'good' band (perfect unreachable once help was taken).
+ *
+ * Backward-compatible: if `attempts` is absent but the legacy `steps`
+ * ({stepId: finalCommand}) is present, each step is graded on that single value.
+ */
+function scoreTerminal(def, result, skipped) {
+  const steps = def.config.steps;
+  const reveals = Array.isArray(result && result.reveals) ? result.reveals : [];
+  const downgraded = Boolean(result && result.downgraded);
+
+  // Normalize input to an attempts-per-step array.
+  const attemptsByStep = {};
+  if (result && result.attempts && typeof result.attempts === 'object') {
+    for (const s of steps) {
+      const a = result.attempts[s.id];
+      attemptsByStep[s.id] = Array.isArray(a) ? a : (a != null ? [a] : []);
+    }
+  } else {
+    const legacy = (result && result.steps) || {};
+    for (const s of steps) {
+      attemptsByStep[s.id] = legacy[s.id] != null ? [legacy[s.id]] : [];
+    }
+  }
+
+  const review = [];
+  let total = 0;
+  for (const s of steps) {
+    const attempts = attemptsByStep[s.id] || [];
+    const revealed = reveals.indexOf(s.id) >= 0;
+
+    // Walk the attempt history: did they ever reach an accepted command, and did
+    // they make a careless (partial/rejected) attempt before getting there?
+    let reachedCorrect = false;
+    let carelessBefore = false;
+    let lastHint = null;
+    let lastTyped = null;
+    for (const raw of attempts) {
+      const c = classifyTerminalCommand(def, s.id, raw);
+      if (c.kind === 'accepted') { reachedCorrect = true; lastTyped = raw; break; }
+      if (c.kind === 'partial' || c.kind === 'rejected') {
+        carelessBefore = true;
+        lastHint = c.text;
+      }
+      lastTyped = raw;
+    }
+
+    let credit = 0;
+    let ok = false;
+    let detail;
+    if (reachedCorrect) {
+      let deduction = 0;
+      if (revealed) deduction += TERMINAL_REVEAL_DEDUCTION;
+      if (carelessBefore) deduction += TERMINAL_CARELESS_DEDUCTION;
+      credit = Math.max(0, 1 - deduction);
+      ok = credit >= 0.999; // only a clean first-try solve counts as fully "ok"
+      detail = credit >= 0.999
+        ? 'Correct: `' + (lastTyped || s.canonical) + '`'
+        : 'Correct after a nudge: `' + (lastTyped || s.canonical) + '`'
+          + (revealed ? ' (answer revealed, −' + TERMINAL_REVEAL_DEDUCTION + ')' : '')
+          + (carelessBefore ? ' (careless attempt first, −' + TERMINAL_CARELESS_DEDUCTION + ')' : '');
+    } else if (lastHint) {
+      // Ended on a partial/rejected attempt without ever correcting.
+      credit = 0;
+      ok = false;
+      detail = lastHint;
+    } else if (attempts.length) {
+      credit = 0;
+      ok = false;
+      detail = 'Wrong: you ran `' + lastTyped + '` — try e.g. `' + s.canonical + '`';
+    } else {
+      credit = 0;
+      ok = false;
+      detail = 'Not attempted — the command was `' + s.canonical + '`';
+    }
+    total += credit;
+    review.push({ label: s.task, ok, detail });
+  }
+
+  const score = clampPct(total / steps.length);
+  const graded = withReview(score, review, skipped);
+  // Downgrade cap: once the player dropped difficulty, 'perfect' is off the table.
+  if (downgraded && !skipped && graded.band === 'perfect') {
+    graded.band = 'good';
+  }
+  return graded;
 }
 
 /**
@@ -887,33 +1157,7 @@ function scoreMiniGame(def, result, skipped) {
   }
 
   if (type === 'terminal') {
-    const accepted = def.answer.accepted;
-    const steps = def.config.steps;
-    const submitted = (result && result.steps) || {};
-    const reveals = Array.isArray(result && result.reveals) ? result.reveals : [];
-    const review = [];
-    let solved = 0;
-    for (const s of steps) {
-      const typed = normalizeCmd(submitted[s.id]);
-      const patterns = (accepted[s.id] || []).map(normalizeCmd);
-      const matched = typed && patterns.indexOf(typed) >= 0;
-      const revealed = reveals.indexOf(s.id) >= 0;
-      if (matched) solved++;
-      review.push({
-        label: s.task,
-        ok: !!matched && !revealed,
-        detail: matched
-          ? (revealed
-              ? 'Correct, but you revealed the answer (e.g. `' + s.canonical + '`)'
-              : 'Correct: `' + (submitted[s.id] || s.canonical) + '`')
-          : (submitted[s.id]
-              ? 'Wrong: you ran `' + submitted[s.id] + '` — try e.g. `' + s.canonical + '`'
-              : 'Not attempted — the command was `' + s.canonical + '`'),
-      });
-    }
-    const revealPenalty = 0.1 * reveals.filter((id) => steps.some((s) => s.id === id)).length;
-    const score = clampPct(solved / steps.length - revealPenalty);
-    return withReview(score, review, skipped);
+    return scoreTerminal(def, result, skipped);
   }
 
   // Unknown type → treat as fail (defensive).
@@ -936,6 +1180,29 @@ function bandFromScore(score) {
   return { band: 'fail', score };
 }
 
+/**
+ * Classify a single typed command for live terminal feedback, WITHOUT leaking
+ * the answer key. Returns only what pertains to the command the player actually
+ * typed:
+ *   { kind, output?, hint?, canonicalShown? }
+ * - 'accepted' → includes the step's simulated `output` so the terminal can
+ *   print it (the output is not a secret; it's the whole point of the sim).
+ * - 'partial' / 'rejected' → includes the teaching `hint` for THAT command.
+ * - 'unknown' → nothing but the kind.
+ * This is the only terminal data the server hands back mid-step, so a player
+ * cannot enumerate the key: an 'unknown' reveals nothing, and accepted/partial/
+ * rejected only confirm a command the player already chose to type.
+ */
+function classifyTerminalLive(def, stepId, raw) {
+  const step = (def.config.steps || []).find((s) => s.id === stepId);
+  if (!step) return { kind: 'unknown' };
+  const c = classifyTerminalCommand(def, stepId, raw);
+  if (c.kind === 'accepted') return { kind: 'accepted', output: step.output };
+  if (c.kind === 'partial') return { kind: 'partial', hint: c.text };
+  if (c.kind === 'rejected') return { kind: 'rejected', hint: c.text };
+  return { kind: 'unknown' };
+}
+
 module.exports = {
   MINIGAMES,
   EVENT_MINIGAMES,
@@ -943,4 +1210,23 @@ module.exports = {
   getMiniGame,
   publicMiniGame,
   scoreMiniGame,
+  classifyTerminalLive,
+  TERMINAL_CARELESS_DEDUCTION,
+  TERMINAL_REVEAL_DEDUCTION,
+  // Source access for the offline standalone build (build-standalone.js), which
+  // inlines these REAL implementations so the demo's grading/classification
+  // matches the server. Not used by the server runtime.
+  _internal: {
+    normalizeCmd,
+    matchesAny,
+    classifyTerminalCommand,
+    classifyTerminalLive,
+    bandFromScore,
+    withReview,
+    scoreTerminal,
+    scoreMiniGame,
+    miniGameIdForEvent,
+    getMiniGame,
+    publicMiniGame,
+  },
 };

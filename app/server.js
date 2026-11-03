@@ -18,6 +18,7 @@ const {
   startGame,
   choose,
   submitMiniGame,
+  classifyTerminal,
   getView,
   GameEngineError,
 } = require('./engine.js');
@@ -28,6 +29,7 @@ const {
   validateStart,
   validateChoose,
   validateMiniGame,
+  validateTermProbe,
 } = require('./validate.js');
 
 const PORT = Number(process.env.PORT) || 4000;
@@ -193,8 +195,8 @@ const requestHandler = async (req, res) => {
         return sendJson(res, 201, startGame(v.value));
       }
 
-      // /api/game/:sessionId  and  /api/game/:sessionId/choose
-      const gameMatch = route.match(/^\/api\/game\/([^/]+)(\/choose|\/minigame)?$/);
+      // /api/game/:sessionId  and  /api/game/:sessionId/{choose,minigame,terminal}
+      const gameMatch = route.match(/^\/api\/game\/([^/]+)(\/choose|\/minigame|\/terminal)?$/);
       if (gameMatch) {
         const sessionId = gameMatch[1];
         const action = gameMatch[2]; // undefined | '/choose' | '/minigame'
@@ -221,6 +223,15 @@ const requestHandler = async (req, res) => {
           const v = validateMiniGame(parsed.value);
           if (!v.ok) return sendError(res, 400, 'Invalid request.', 'validation');
           return sendJson(res, 200, submitMiniGame(sessionId, v.value));
+        }
+        if (method === 'POST' && action === '/terminal') {
+          const raw = await readBody(req, res);
+          if (raw === null) return; // response already sent (too large / error)
+          const parsed = parseJson(raw);
+          if (!parsed.ok) return sendError(res, 400, 'Invalid request.', 'validation');
+          const v = validateTermProbe(parsed.value);
+          if (!v.ok) return sendError(res, 400, 'Invalid request.', 'validation');
+          return sendJson(res, 200, classifyTerminal(sessionId, v.value));
         }
       }
 

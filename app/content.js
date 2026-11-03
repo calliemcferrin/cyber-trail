@@ -13,6 +13,7 @@ const FACILITIES = {
     name: 'Blackwater Municipal Water Treatment',
     sector: 'Water & Wastewater Systems',
     tagline: 'Keep the city hydrated. Keep the chemicals in balance.',
+    blurb: 'Aging SCADA systems. One tampered setpoint can poison a city\u2019s water.',
     description:
       'A mid-sized municipal water treatment plant running aging SCADA ' +
       'systems. A single tampered setpoint can poison a water supply — as ' +
@@ -27,6 +28,7 @@ const FACILITIES = {
     name: 'Grid North Regional Electric',
     sector: 'Energy',
     tagline: 'Keep the lights on across three counties.',
+    blurb: 'Substations and a control center. Keep three counties powered.',
     description:
       'A regional electric utility operating substations and a control ' +
       'center. In 2015, attackers used BlackEnergy malware to black out ' +
@@ -39,6 +41,7 @@ const FACILITIES = {
     name: 'St. Mercy Regional Medical Center',
     sector: 'Healthcare & Public Health',
     tagline: 'Keep patients alive. Keep their records safe.',
+    blurb: 'The #1 ransomware target. Here, downtime can cost lives.',
     description:
       'A busy regional hospital full of connected medical devices, electronic ' +
       'health records, and life-critical systems. Healthcare is the single ' +
@@ -52,6 +55,7 @@ const FACILITIES = {
     name: 'Cascade Natural Gas Pipeline Co.',
     sector: 'Energy (Natural Gas Pipeline)',
     tagline: 'Keep the gas flowing. Keep the pressure safe.',
+    blurb: 'IT and operations entwined — the Colonial Pipeline lesson.',
     description:
       'An interstate natural gas pipeline operator running compressor ' +
       'stations, SCADA, and a corporate IT network that is increasingly ' +
@@ -66,6 +70,7 @@ const FACILITIES = {
     name: 'Capitol County Government Services',
     sector: 'Government Facilities',
     tagline: 'Serve the public. Guard the public\u2019s trust.',
+    blurb: 'Social engineering and AI deepfakes. The battlefield is human trust.',
     description:
       'A county government office handling citizen records, benefits, ' +
       'elections support, and public communications. Government bodies are ' +
@@ -82,6 +87,7 @@ const ROLES = {
     id: 'employee',
     name: 'Entry-Level Employee',
     tagline: 'The human firewall on the ground floor.',
+    blurb: 'First line of defense. Spot phishing and social engineering.',
     description:
       'You are the first line of defense. Most breaches start with a person, ' +
       'not a machine. Learn to spot social engineering, phishing, and the ' +
@@ -91,6 +97,7 @@ const ROLES = {
     id: 'operator',
     name: 'Cyber Operator',
     tagline: 'Hands on the keyboard in the SOC.',
+    blurb: 'Detect, triage, respond. Contain incidents before they spread.',
     description:
       'You detect, triage, and respond. Alerts are flooding in and not all of ' +
       'them matter. Learn to contain incidents, patch wisely, and segment ' +
@@ -100,6 +107,7 @@ const ROLES = {
     id: 'supervisor',
     name: 'Supervisor',
     tagline: 'The buck stops at your desk.',
+    blurb: 'Budget, policy, people. Balance risk and secure the funding.',
     description:
       'You control budget, policy, and people. Every dollar spent on defense ' +
       'is a dollar not spent elsewhere. Learn to balance risk, build a ' +
@@ -3680,6 +3688,181 @@ const EVENTS = [
         'Refresh training regularly as threats evolve.',
       ],
       mitreAttck: 'T1598',
+    },
+  },
+
+  // ───────────────────────── FUNDING / GRANTS (all facilities) ─────────────────────────
+  // An additive, mid-journey step about securing the money that makes defense
+  // possible. The Supervisor plays a mini-game (grant/funding prioritization)
+  // that can EARN budget; the Operator and Employee see role-specific questions
+  // on the same theme. Inserted at the journey midpoint by the engine and
+  // always skippable — but a Supervisor who skips it AND was imperfect anywhere
+  // else loses the run (see engine: the funding safety net).
+  {
+    id: 'funding_grants_supervisor',
+    title: 'Securing the Funding',
+    prompt:
+      'Your defenses are only as strong as the budget behind them. A federal ' +
+      'infrastructure cybersecurity grant cycle is open, and the board will ' +
+      'match funds for a well-justified request. Build the strongest case for ' +
+      'funding — this mini-game can EARN budget back for the facility. (It is ' +
+      'optional, but going without the money you could have secured is a risk.)',
+    facilities: ['water', 'power', 'hospital', 'gas', 'government'],
+    roles: ['supervisor'],
+    // This event is resolved via its mini-game (see EVENT_MINIGAMES →
+    // fund_the_defense). The choices below are a fallback only.
+    choices: [
+      {
+        id: 'skip_funding',
+        label: 'Don\u2019t pursue funding this cycle.',
+        effects: [{ key: 'budget', amount: -10 }],
+        isRecommended: false,
+        outcome:
+          'You left money on the table. Grants and board matching are how ' +
+          'critical-infrastructure security actually gets paid for — skipping a ' +
+          'cycle means defending on a shoestring.',
+      },
+      {
+        id: 'pursue_funding',
+        label: 'Build and submit a strong, well-justified funding request.',
+        effects: [{ key: 'budget', amount: 25 }],
+        isRecommended: true,
+        outcome:
+          'A clear, risk-based request won the grant and the board match. ' +
+          'Funding secured is defense enabled.',
+      },
+    ],
+    learning: {
+      attackType: 'Security Funding / Grant Strategy',
+      summary:
+        'Cyber defense runs on money. Supervisors who can justify spending in ' +
+        'risk and business terms — and who pursue grants and matching funds — ' +
+        'are what make every technical control affordable.',
+      realWorldExample:
+        'US programs like the State and Local Cybersecurity Grant Program and ' +
+        'CISA funding exist specifically to help critical-infrastructure and ' +
+        'public bodies pay for security they could not otherwise afford.',
+      preventiveMeasures: [
+        'Treat funding as a security control: no budget, no defense.',
+        'Justify spend in risk and business-impact terms leadership understands.',
+        'Pursue grants and matching funds every cycle — do not leave money unclaimed.',
+        'Tie each dollar to the specific risk it reduces.',
+      ],
+      mitreAttck: 'N/A',
+    },
+  },
+  {
+    id: 'funding_grants_operator',
+    title: 'Backing the Funding Request',
+    prompt:
+      'Your supervisor is assembling a cybersecurity funding/grant request and ' +
+      'asks you — the operator on the keyboard — for the input that will make ' +
+      'the strongest case. What do you give them?',
+    facilities: ['water', 'power', 'hospital', 'gas', 'government'],
+    roles: ['operator'],
+    choices: [
+      {
+        id: 'vague_ask',
+        label: 'Tell them to "just ask for as much as possible."',
+        effects: [{ key: 'budget', amount: -5 }, { key: 'morale', amount: -2 }],
+        isRecommended: false,
+        outcome:
+          'An unjustified, round-number ask is the easiest thing for a funder ' +
+          'to reject. Money follows evidence, not optimism.',
+      },
+      {
+        id: 'hardware_only',
+        label: 'Push for one big, visible hardware purchase.',
+        effects: [{ key: 'budget', amount: 3 }, { key: 'integrity', amount: 2 }],
+        isRecommended: false,
+        outcome:
+          'Flashy hardware is easy to point at but rarely the highest-impact ' +
+          'spend. A request built around one shiny box ignores the gaps that ' +
+          'actually get exploited.',
+      },
+      {
+        id: 'risk_evidence',
+        label: 'Provide concrete risk data: current gaps, incident costs, and the risk each dollar reduces.',
+        effects: [{ key: 'budget', amount: 12 }, { key: 'integrity', amount: 3 }],
+        isRecommended: true,
+        outcome:
+          'You gave the supervisor exactly what wins funding: evidence. A ' +
+          'request tied to specific risks and the cost of inaction is the kind ' +
+          'grant reviewers and boards actually fund.',
+      },
+    ],
+    learning: {
+      attackType: 'Security Funding / Grant Strategy',
+      summary:
+        'Funding requests win on evidence. Operators hold the technical facts — ' +
+        'gaps, alerts, near-misses — that turn a vague ask into a fundable case.',
+      realWorldExample:
+        'Grant programs for critical infrastructure (e.g. the State and Local ' +
+        'Cybersecurity Grant Program) reward applications that map spending to ' +
+        'assessed risk rather than wish-lists.',
+      preventiveMeasures: [
+        'Document gaps, incidents, and near-misses — they are funding evidence.',
+        'Map each requested dollar to a specific risk it reduces.',
+        'Favor highest-impact controls over the most visible hardware.',
+      ],
+      mitreAttck: 'N/A',
+    },
+  },
+  {
+    id: 'funding_grants_employee',
+    title: 'Your Part in the Funding Case',
+    prompt:
+      'Leadership is applying for a cybersecurity grant and asks all staff to ' +
+      'help show why it matters. As an entry-level employee, what is the most ' +
+      'useful thing you can do?',
+    facilities: ['water', 'power', 'hospital', 'gas', 'government'],
+    roles: ['employee'],
+    choices: [
+      {
+        id: 'ignore_it',
+        label: 'Assume funding is "management\u2019s problem" and ignore the request.',
+        effects: [{ key: 'morale', amount: -3 }],
+        isRecommended: false,
+        outcome:
+          'Funding cases are strongest when they show real, ground-level need. ' +
+          'Staying out of it leaves leadership without the frontline evidence ' +
+          'that makes a grant compelling.',
+      },
+      {
+        id: 'exaggerate',
+        label: 'Invent dramatic incidents to make the need look bigger.',
+        effects: [{ key: 'integrity', amount: -6 }, { key: 'morale', amount: -2 }],
+        isRecommended: false,
+        outcome:
+          'Fabricated evidence can sink an application and your credibility. ' +
+          'Grant reviewers verify claims — honesty is not just ethical, it is ' +
+          'what keeps the money coming.',
+      },
+      {
+        id: 'report_reality',
+        label: 'Accurately report the real friction and near-misses you see day to day.',
+        effects: [{ key: 'budget', amount: 8 }, { key: 'morale', amount: 3 }],
+        isRecommended: true,
+        outcome:
+          'Honest frontline detail — the phishing you catch, the clunky tools, ' +
+          'the close calls — is exactly the real-world evidence that makes a ' +
+          'funding case credible and fundable.',
+      },
+    ],
+    learning: {
+      attackType: 'Security Funding / Grant Strategy',
+      summary:
+        'Everyone contributes to the funding case. Honest frontline reporting of ' +
+        'real risks and friction is powerful, credible evidence for a grant.',
+      realWorldExample:
+        'Strong public-sector cyber grant applications document real operational ' +
+        'risk; fabricated or absent evidence undermines them.',
+      preventiveMeasures: [
+        'Report real security friction and near-misses honestly.',
+        'Never exaggerate or fabricate — it destroys a funding case and trust.',
+        'Recognize that frontline experience is valuable funding evidence.',
+      ],
+      mitreAttck: 'N/A',
     },
   },
 ];

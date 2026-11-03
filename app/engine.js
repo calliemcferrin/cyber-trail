@@ -15,6 +15,7 @@ const {
   getMiniGame,
   publicMiniGame,
   scoreMiniGame,
+  classifyTerminalLive,
 } = require('./minigames.js');
 
 const clamp = (n, min = 0, max = 100) => Math.max(min, Math.min(max, n));
@@ -33,6 +34,17 @@ const DIFFICULTY = {
   // Starting resources are reduced by this much from each facility's base,
   // leaving less cushion for mistakes.
   startPenalty: { integrity: 10, uptime: 5, budget: 10, morale: 10 },
+};
+
+/**
+ * The mid-journey funding/grant event for each role. The Supervisor's is a
+ * mini-game that can EARN budget; the Operator/Employee versions are questions.
+ * Inserted at the journey midpoint as an additive, skippable step.
+ */
+const FUNDING_EVENT_IDS = {
+  supervisor: 'funding_grants_supervisor',
+  operator: 'funding_grants_operator',
+  employee: 'funding_grants_employee',
 };
 
 /** Fisher–Yates shuffle. */
@@ -105,6 +117,7 @@ function toView(run) {
     score: computeScore(run),
     currentEvent,
     lastOutcome: run.lastOutcome,
+    loseReason: run.loseReason || null,
   };
 }
 
@@ -119,11 +132,29 @@ function startGame({ facilityId, roleId }) {
   if (pool.length === 0) {
     throw new GameEngineError('No scenarios available.', 'no_content');
   }
-  const totalStages = Math.min(facility.stages, pool.length);
-  const deck = shuffle(pool.map((e) => e.id)).slice(0, totalStages);
+  // The funding/grant event is handled specially: it's an ADDITIVE, mid-journey
+  // step (not part of the random scenario count), so separate it from the pool.
+  const fundingEvent = pool.find((e) => e.id === FUNDING_EVENT_IDS[roleId]);
+  const scenarioPool = pool.filter((e) => e.id !== (fundingEvent && fundingEvent.id));
+
+  const scenarioCount = Math.min(facility.stages, scenarioPool.length);
+  const deck = shuffle(scenarioPool.map((e) => e.id)).slice(0, scenarioCount);
+
+  // Insert the funding event at the journey midpoint (if one exists for this
+  // role). This makes the run one stage longer than the scenario count.
+  let fundingEventId = null;
+  if (fundingEvent) {
+    fundingEventId = fundingEvent.id;
+    const mid = Math.floor(deck.length / 2);
+    deck.splice(mid, 0, fundingEventId);
+  }
+  const totalStages = deck.length;
   const now = Date.now();
   // Reduced starting resources — less cushion than the facility's base.
   const base = facility.startingResources;
+  // Per-facility starting budget (reduced by the start penalty like the other
+  // meters). Budget is a managed resource again: it starts lean and the new
+  // funding mini-game (mid-journey) is how a facility EARNS money back.
   const startResources = {
     integrity: clamp(base.integrity - DIFFICULTY.startPenalty.integrity),
     uptime: clamp(base.uptime - DIFFICULTY.startPenalty.uptime),
@@ -141,6 +172,13 @@ function startGame({ facilityId, roleId }) {
     deck,
     currentEventId: deck[0] || null,
     lastOutcome: null,
+    // Funding-event tracking (for the Supervisor skip rule). `fundingEventId` is
+    // the mid-journey funding step for this role; `fundingSkipped` records a
+    // skip; `imperfectElsewhere` is set true if ANY non-funding event was less
+    // than perfect (a non-recommended choice, or a mini-game band below perfect).
+    fundingEventId,
+    fundingSkipped: false,
+    imperfectElsewhere: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -164,9 +202,7 @@ function choose(sessionId, { eventId, choiceId }) {
   const choice = event.choices.find((c) => c.id === choiceId);
   if (!choice) throw new GameEngineError('Invalid choice.', 'bad_choice');
 
-  for (const eff of choice.effects) {
-    run.resources[eff.key] = clamp(run.resources[eff.key] + eff.amount);
-  }
+  const deltas = applyEffects(run, choice.effects);
   // Glossary for the debrief: terms appearing in the outcome + learning text.
   const debriefText = {
     prompt: choice.outcome,
@@ -186,11 +222,51 @@ function choose(sessionId, { eventId, choiceId }) {
     isRecommended: choice.isRecommended,
     learning: event.learning,
     eventTitle: event.title,
+    deltas,
     glossary: glossaryFor(debriefText),
   };
 
+  // Track run quality for the funding skip rule.
+  trackFundingQuality(run, event.id, {
+    skipped: false,
+    perfect: !!choice.isRecommended,
+  });
+
   advanceStage(run);
   return toView(run);
+}
+
+/**
+ * Update the funding-rule tracking after an event resolves.
+ * - If this is the funding event and it was skipped → mark fundingSkipped.
+ * - If this is ANY OTHER event and it wasn't a top-mark result → mark
+ *   imperfectElsewhere (a non-recommended choice, or a mini-game below perfect).
+ * The funding event's own result never sets imperfectElsewhere (the rule is
+ * explicitly "perfect APART FROM the funding mini-game").
+ */
+function trackFundingQuality(run, eventId, { skipped, perfect }) {
+  if (eventId === run.fundingEventId) {
+    if (skipped) run.fundingSkipped = true;
+  } else if (!perfect) {
+    run.imperfectElsewhere = true;
+  }
+}
+
+/**
+ * Apply a list of effects to the run's resources, returning the ACTUAL applied
+ * delta per key (after clamping to 0..100). This lets the client show the player
+ * exactly what each choice/outcome did to each meter this turn. The returned
+ * value is derived state, not a secret — safe to send to the client.
+ */
+function applyEffects(run, effects) {
+  const deltas = { integrity: 0, uptime: 0, budget: 0, morale: 0 };
+  for (const eff of effects || []) {
+    if (!(eff.key in run.resources)) continue; // ignore unknown resource keys
+    const before = run.resources[eff.key];
+    run.resources[eff.key] = clamp(before + eff.amount);
+    deltas[eff.key] += run.resources[eff.key] - before;
+  }
+  return deltas;
 }
 
 /** Advance the run one stage and evaluate win/lose. Shared by choose + minigame. */
@@ -210,11 +286,26 @@ function advanceStage(run) {
     run.status = 'lost';
     run.currentEventId = null;
   } else if (run.stage >= run.totalStages) {
-    run.status = 'won';
+    // Reached the end. Apply the funding safety-net rule before declaring a win:
+    // skipping the funding step is only forgiven on an otherwise-perfect run.
+    if (run.fundingSkipped && run.imperfectElsewhere) {
+      run.status = 'lost';
+      run.loseReason = 'funding';
+    } else {
+      run.status = 'won';
+    }
     run.currentEventId = null;
   } else {
     run.currentEventId = run.deck[run.stage] || null;
-    if (!run.currentEventId) run.status = 'won';
+    if (!run.currentEventId) {
+      // Deck exhausted early — same end-of-run funding check applies.
+      if (run.fundingSkipped && run.imperfectElsewhere) {
+        run.status = 'lost';
+        run.loseReason = 'funding';
+      } else {
+        run.status = 'won';
+      }
+    }
   }
   run.updatedAt = Date.now();
 }
@@ -249,8 +340,15 @@ function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
   const band = scored.band;
   const graded = def.grades[band];
 
-  for (const eff of graded.effects) {
-    run.resources[eff.key] = clamp(run.resources[eff.key] + eff.amount);
+  const deltas = applyEffects(run, graded.effects);
+
+  // Client-safe summary of what each band awards, so the debrief can explain
+  // WHERE the player's meter changes came from: which band they landed in, and
+  // the better/worse bands they could have hit. This is the scoring
+  // consequence, not the answer key — safe (and educational) to reveal.
+  const bandEffects = {};
+  for (const b of ['perfect', 'good', 'fail']) {
+    if (def.grades[b]) bandEffects[b] = def.grades[b].effects;
   }
 
   const debriefText = {
@@ -270,16 +368,56 @@ function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
     outcome: graded.outcome,
     isRecommended: band === 'perfect' || band === 'good',
     band,
+    bandEffects,
     skipped: Boolean(skipped),
     wrongCount: scored.wrongCount,
     review: scored.review,
     learning: event.learning,
     eventTitle: event.title,
+    deltas,
     glossary: glossaryFor(debriefText),
   };
 
+  // Track run quality for the funding skip rule. A skipped funding mini-game
+  // records the skip; any OTHER mini-game below the 'perfect' band counts as
+  // imperfect-elsewhere.
+  trackFundingQuality(run, event.id, {
+    skipped: Boolean(skipped),
+    perfect: band === 'perfect',
+  });
+
   advanceStage(run);
   return toView(run);
+}
+
+/**
+ * Live, mid-step classification for the terminal mini-game. The client sends the
+ * single command the player just typed; the server classifies it against the
+ * hidden key and returns only what pertains to THAT command (simulated output if
+ * accepted, a targeted teaching hint if partial/rejected, nothing if unknown).
+ *
+ * Trust boundary: this is gated to the run's CURRENT event and its mapped
+ * terminal mini-game, so it can't be used to probe other mini-games, and it
+ * never returns the answer key — only a verdict on a command the player chose to
+ * type. Grading still happens authoritatively in submitMiniGame.
+ */
+function classifyTerminal(sessionId, { eventId, minigameId, stepId, command }) {
+  const run = runs.get(sessionId);
+  if (!run) throw new GameEngineError('Session not found.', 'no_session');
+  if (run.status !== 'in_progress') {
+    throw new GameEngineError('This run is already over.', 'run_over');
+  }
+  if (!run.currentEventId || run.currentEventId !== eventId) {
+    throw new GameEngineError('Event mismatch.', 'event_mismatch');
+  }
+  if (miniGameIdForEvent(eventId) !== minigameId) {
+    throw new GameEngineError('Mini-game mismatch.', 'minigame_mismatch');
+  }
+  const def = getMiniGame(minigameId);
+  if (!def || def.type !== 'terminal') {
+    throw new GameEngineError('Not a terminal mini-game.', 'minigame_mismatch');
+  }
+  return classifyTerminalLive(def, stepId, command);
 }
 
 function getView(sessionId) {
@@ -292,6 +430,7 @@ module.exports = {
   startGame,
   choose,
   submitMiniGame,
+  classifyTerminal,
   getView,
   GameEngineError,
 };

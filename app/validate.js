@@ -103,7 +103,9 @@ function validateMiniGame(body) {
       }
       cleanResult.assignments = a;
     }
-    // Terminal mini-game: { level, steps: {stepId: "typed cmd"}, reveals: id[] }
+    // Terminal mini-game:
+    //   { level, steps?: {stepId: "cmd"}, attempts?: {stepId: ["cmd", ...]},
+    //     reveals?: id[], downgraded?: bool }
     if (result.level !== undefined) {
       if (['guided', 'comfortable', 'expert'].indexOf(result.level) < 0) {
         return { ok: false };
@@ -122,9 +124,29 @@ function validateMiniGame(body) {
       }
       cleanResult.steps = st;
     }
+    if (result.attempts !== undefined) {
+      const at = result.attempts;
+      if (at === null || typeof at !== 'object' || Array.isArray(at)) return { ok: false };
+      const keys = Object.keys(at);
+      if (keys.length > 32) return { ok: false };
+      for (const k of keys) {
+        if (!isId(k)) return { ok: false };
+        const arr = at[k];
+        // Bounded array of short free-text command strings.
+        if (!Array.isArray(arr) || arr.length > 24) return { ok: false };
+        for (const cmd of arr) {
+          if (typeof cmd !== 'string' || cmd.length > 200) return { ok: false };
+        }
+      }
+      cleanResult.attempts = at;
+    }
     if (result.reveals !== undefined) {
       if (!isIdArray(result.reveals)) return { ok: false };
       cleanResult.reveals = result.reveals;
+    }
+    if (result.downgraded !== undefined) {
+      if (typeof result.downgraded !== 'boolean') return { ok: false };
+      cleanResult.downgraded = result.downgraded;
     }
   }
 
@@ -139,6 +161,22 @@ function validateMiniGame(body) {
   };
 }
 
+/**
+ * POST /api/game/:id/terminal body — live, mid-step command classification.
+ * Shape: { eventId, minigameId, stepId, command }
+ * `command` is a short free-text shell string (bounded); everything else is an id.
+ */
+function validateTermProbe(body) {
+  if (!body || typeof body !== 'object') return { ok: false };
+  const { eventId, minigameId, stepId, command } = body;
+  if (!isId(eventId) || !isId(minigameId) || !isId(stepId)) return { ok: false };
+  if (typeof command !== 'string' || command.length < 1 || command.length > 200) {
+    return { ok: false };
+  }
+  if (Object.keys(body).length !== 4) return { ok: false };
+  return { ok: true, value: { eventId, minigameId, stepId, command } };
+}
+
 module.exports = {
   isId,
   isUuid,
@@ -146,4 +184,5 @@ module.exports = {
   validateStart,
   validateChoose,
   validateMiniGame,
+  validateTermProbe,
 };
