@@ -268,6 +268,15 @@ function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
 
   const deltas = applyEffects(run, graded.effects);
 
+  // Client-safe summary of what each band awards, so the debrief can explain
+  // WHERE the player's meter changes came from: which band they landed in, and
+  // the better/worse bands they could have hit. This is the scoring
+  // consequence, not the answer key — safe (and educational) to reveal.
+  const bandEffects = {};
+  for (const b of ['perfect', 'good', 'fail']) {
+    if (def.grades[b]) bandEffects[b] = def.grades[b].effects;
+  }
+
   const debriefText = {
     prompt: graded.outcome,
     choices: [
@@ -285,6 +294,7 @@ function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
     outcome: graded.outcome,
     isRecommended: band === 'perfect' || band === 'good',
     band,
+    bandEffects,
     skipped: Boolean(skipped),
     wrongCount: scored.wrongCount,
     review: scored.review,

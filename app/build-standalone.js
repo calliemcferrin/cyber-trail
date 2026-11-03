@@ -271,10 +271,14 @@ ${matrixJs}
     var scored = scoreMiniGame(def, body.result, !!body.skipped);
     var graded = def.grades[scored.band];
     var deltas = applyEffects(run, graded.effects);
+    var bandEffects = {};
+    ['perfect', 'good', 'fail'].forEach(function (b) {
+      if (def.grades[b]) bandEffects[b] = def.grades[b].effects;
+    });
     run.lastOutcome = {
       choiceId: 'minigame:' + body.minigameId, outcome: graded.outcome,
       isRecommended: scored.band === 'perfect' || scored.band === 'good',
-      band: scored.band, skipped: !!body.skipped, wrongCount: scored.wrongCount,
+      band: scored.band, bandEffects: bandEffects, skipped: !!body.skipped, wrongCount: scored.wrongCount,
       review: scored.review, learning: ev.learning, eventTitle: ev.title, deltas: deltas,
       glossary: glossaryForText([graded.outcome, ev.learning.summary, ev.learning.realWorldExample, ev.learning.preventiveMeasures.join(' ')]),
     };

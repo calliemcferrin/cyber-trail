@@ -666,6 +666,82 @@
     return details;
   }
 
+  // ------------------------- meter-change explanation -------------------------
+  const METER_NAME = { integrity: 'Integrity', uptime: 'Uptime', budget: 'Budget', morale: 'Morale' };
+
+  // Format an effects array (or a deltas object) into "+8 Integrity, −4 Morale".
+  // Returns '' when there is no net change.
+  function fmtEffects(effects) {
+    // Accept either [{key,amount}] or {integrity:n,...}
+    let pairs;
+    if (Array.isArray(effects)) {
+      pairs = effects.map((e) => [e.key, e.amount]);
+    } else {
+      pairs = Object.keys(effects || {}).map((k) => [k, effects[k]]);
+    }
+    const parts = pairs
+      .filter(([, amt]) => amt)
+      .map(([key, amt]) => (amt > 0 ? '+' : '\u2212') + Math.abs(amt) + ' ' + (METER_NAME[key] || key));
+    return parts.join(', ');
+  }
+
+  // Explains WHERE the meter changes came from. For a mini-game: which band you
+  // landed in and the better/worse bands you could have hit (so the player sees
+  // exactly where negative points come from — dropping a band). For a plain
+  // choice: the literal per-choice delta that just hit the meters.
+  function meterExplain(o) {
+    if (!o) return null;
+    const BAND_LABEL = { perfect: '★ PERFECT', good: '✓ GOOD', fail: '✗ FAIL' };
+
+    // Mini-game: band-based explanation.
+    if (o.band && o.bandEffects) {
+      const be = o.bandEffects;
+      const rows = ['perfect', 'good', 'fail']
+        .filter((b) => be[b])
+        .map((b) => {
+          const eff = fmtEffects(be[b]) || 'no change';
+          const isYou = b === o.band;
+          return el('li', { class: 'meter-why-row' + (isYou ? ' you' : '') }, [
+            el('span', { class: 'meter-why-band', text: BAND_LABEL[b] || b }),
+            el('span', { class: 'meter-why-eff', text: eff }),
+            isYou ? el('span', { class: 'meter-why-tag', text: '  ← you' }) : null,
+          ]);
+        });
+      const wrong = o.wrongCount || 0;
+      const lead = o.skipped
+        ? 'You skipped this challenge, so it was scored as FAIL — the full penalty below.'
+        : wrong === 0
+          ? 'A clean sweep landed you in the top band. Here\u2019s what each band awards:'
+          : 'Your ' + wrong + ' wrong answer' + (wrong === 1 ? '' : 's') +
+            ' pushed you down the bands. Each band awards a fixed set of meter ' +
+            'changes — fewer mistakes = a higher band = better meters:';
+      return el('div', { class: 'meter-why' }, [
+        el('p', { class: 'meter-why-lead', text: 'Why your meters moved' }),
+        el('p', { class: 'meter-why-sub', text: lead }),
+        el('ul', { class: 'meter-why-list' }, rows),
+        wrong > 0 ? el('p', { class: 'meter-why-note', text:
+          'The negative points come from dropping a band — not from any single ' +
+          'item. Getting those ' + wrong + ' right would move you up.' }) : null,
+      ]);
+    }
+
+    // Plain choice: literal per-choice delta.
+    if (o.deltas) {
+      const s = fmtEffects(o.deltas);
+      if (!s) return null;
+      const good = o.isRecommended;
+      return el('div', { class: 'meter-why' }, [
+        el('p', { class: 'meter-why-lead', text: 'Why your meters moved' }),
+        el('p', { class: 'meter-why-sub' }, [
+          'This choice ' + (good ? 'earned' : 'cost') + ' you: ',
+          el('span', { class: 'meter-why-eff ' + (good ? 'pos' : 'neg'), text: s }),
+          good ? '.' : ' — a stronger decision would have protected those meters.',
+        ]),
+      ]);
+    }
+    return null;
+  }
+
   // ------------------------- mini-game review ("where you went wrong") -------------------------
   // Collapsible per-item breakdown shown in the debrief after a mini-game.
   function reviewBlock(o) {
@@ -1160,6 +1236,7 @@
               ({ perfect: '★ PERFECT', good: '✓ GOOD', fail: '✗ FAILED' }[o.band] || o.band)
             : (o.isRecommended ? '✓ Strong security decision' : '✗ Risky decision') }),
         el('p', { class: 'prompt-text', text: o.outcome }),
+        meterExplain(o),
         reviewBlock(o),
         el('hr'),
         el('p', { class: 'eyebrow', text: '// THREAT INTEL' }),
