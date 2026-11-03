@@ -82,4 +82,9 @@ function glossaryFor(event) {
   return found;
 }
 
-module.exports = { GLOSSARY, glossaryFor };
+module.exports = {
+  GLOSSARY,
+  glossaryFor,
+  // Source access for the offline standalone build (build-standalone.js).
+  _internal: { eventText, TERMS },
+};

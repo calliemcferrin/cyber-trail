@@ -839,17 +839,29 @@ function classifyTerminalCommand(def, stepId, raw) {
   if (accepted.map(normalizeCmd).indexOf(typed) >= 0) return { kind: 'accepted' };
   const partial = (ans.partial && ans.partial[stepId]) || [];
   for (const p of partial) {
-    if ((p.match || []).map(normalizeCmd).indexOf(typed) >= 0) {
-      return { kind: 'partial', text: p.hint };
-    }
+    if (matchesAny(typed, p.match)) return { kind: 'partial', text: p.hint };
   }
   const rejected = (ans.rejected && ans.rejected[stepId]) || [];
   for (const r of rejected) {
-    if ((r.match || []).map(normalizeCmd).indexOf(typed) >= 0) {
-      return { kind: 'rejected', text: r.why };
-    }
+    if (matchesAny(typed, r.match)) return { kind: 'rejected', text: r.why };
   }
   return { kind: 'unknown' };
+}
+
+/**
+ * Match a normalized command against a list of patterns. A pattern matches
+ * either exactly, or as a whole-word command prefix (so `ping 8.8.8.8` matches
+ * the pattern `ping`), but never a partial word (so `pingx` does NOT match
+ * `ping`). Used only for partial/rejected teaching hints — never for grading.
+ */
+function matchesAny(typed, patterns) {
+  for (const raw of patterns || []) {
+    const pat = normalizeCmd(raw);
+    if (!pat) continue;
+    if (typed === pat) return true;
+    if (typed === pat || typed.indexOf(pat + ' ') === 0) return true;
+  }
+  return false;
 }
 
 /**
@@ -1117,4 +1129,20 @@ module.exports = {
   classifyTerminalLive,
   TERMINAL_CARELESS_DEDUCTION,
   TERMINAL_REVEAL_DEDUCTION,
+  // Source access for the offline standalone build (build-standalone.js), which
+  // inlines these REAL implementations so the demo's grading/classification
+  // matches the server. Not used by the server runtime.
+  _internal: {
+    normalizeCmd,
+    matchesAny,
+    classifyTerminalCommand,
+    classifyTerminalLive,
+    bandFromScore,
+    withReview,
+    scoreTerminal,
+    scoreMiniGame,
+    miniGameIdForEvent,
+    getMiniGame,
+    publicMiniGame,
+  },
 };
