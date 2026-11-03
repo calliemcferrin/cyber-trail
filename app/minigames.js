@@ -576,6 +576,48 @@ const MINIGAMES = {
           'netstat -tunap', 'netstat -tulnp', 'netstat -an', 'netstat -tulpn', 'netstat',
         ],
       },
+      // "Right tool, wrong form" — the command is on the right track but
+      // incomplete for the task. Grading gives a targeted nudge and a small,
+      // recoverable deduction (the player can still type the full command and
+      // earn the step's points minus the carelessness penalty). Hidden.
+      partial: {
+        step_ls: [
+          { match: ['ls', 'ls -l', 'ls -a', 'dir'],
+            hint: 'Right command — but plain `ls` hides the files that matter. ' +
+              'Add flags to show ALL entries (including dotfiles) in LONG form, ' +
+              'e.g. `ls -la`. Attackers hide droppers as dot-files.' },
+        ],
+        step_grep: [
+          { match: ['cat /var/log/auth.log', 'less /var/log/auth.log', 'more /var/log/auth.log'],
+            hint: 'That opens the whole log — right file, but you need to FILTER ' +
+              'it. Use `grep` to pull just the "Failed password" lines so the ' +
+              'brute force stands out, e.g. `grep "Failed password" /var/log/auth.log`.' },
+        ],
+      },
+      // "Plausible but wrong" — commands a learner might reach for that do NOT
+      // answer THIS step's question. Grading rejects them with a specific
+      // teaching explanation (not a generic error) and the same small,
+      // recoverable deduction once the player corrects. Hidden.
+      rejected: {
+        step_who: [
+          { match: ['whoami', 'id', 'echo $user', 'echo $us-er'],
+            why: '`whoami` (and `id`) print only YOUR OWN identity — they can\u2019t ' +
+              'reveal the intruder. To see every session on the box, including ' +
+              'the rogue root login from an unknown IP, use `who` (or `w`).' },
+        ],
+        step_ps: [
+          { match: ['ls -la', 'ls', 'jobs'],
+            why: '`jobs`/`ls` only show this shell\u2019s background jobs or files — ' +
+              'not every process on the system. To find a CPU-pegging malicious ' +
+              'process you need the full process table: `ps aux` (or `top`).' },
+        ],
+        step_ss: [
+          { match: ['ping', 'ifconfig', 'ip a', 'ip addr'],
+            why: '`ping`/`ifconfig` test or describe YOUR interface — they don\u2019t ' +
+              'list active connections. To spot the command-and-control link you ' +
+              'need the socket table: `ss -tunap` (or `netstat -tunap`).' },
+        ],
+      },
     },
     // Reward bands. "Perfect" is reachable at any comfort level (guidance only
     // changes help, not the ceiling). Reveals in comfortable mode cost a little.
@@ -775,6 +817,138 @@ function getMiniGame(id) {
   return MINIGAMES[id];
 }
 
+// Per-step deduction (0..1) for a careless attempt — "right tool, wrong flags"
+// or a plausible-but-wrong command — that the player then corrected. Small and
+// recoverable: you still earn the step, minus this. See HANDOFF / design notes.
+const TERMINAL_CARELESS_DEDUCTION = 0.15;
+// Reveal (comfortable mode) costs a little more than a careless retry.
+const TERMINAL_REVEAL_DEDUCTION = 0.2;
+
+/**
+ * Classify a single typed command for a terminal step against the hidden key.
+ * Returns one of: 'accepted' | 'partial' | 'rejected' | 'unknown'.
+ * `partial`/`rejected` also return the teaching text so the client can show a
+ * targeted nudge (the client never holds the key; it only learns about a
+ * command it actually typed, after the server tells it).
+ */
+function classifyTerminalCommand(def, stepId, raw) {
+  const typed = normalizeCmd(raw);
+  if (!typed) return { kind: 'unknown' };
+  const ans = def.answer || {};
+  const accepted = (ans.accepted && ans.accepted[stepId]) || [];
+  if (accepted.map(normalizeCmd).indexOf(typed) >= 0) return { kind: 'accepted' };
+  const partial = (ans.partial && ans.partial[stepId]) || [];
+  for (const p of partial) {
+    if ((p.match || []).map(normalizeCmd).indexOf(typed) >= 0) {
+      return { kind: 'partial', text: p.hint };
+    }
+  }
+  const rejected = (ans.rejected && ans.rejected[stepId]) || [];
+  for (const r of rejected) {
+    if ((r.match || []).map(normalizeCmd).indexOf(typed) >= 0) {
+      return { kind: 'rejected', text: r.why };
+    }
+  }
+  return { kind: 'unknown' };
+}
+
+/**
+ * Grade the terminal mini-game from per-step ATTEMPT HISTORY. The client submits
+ * `attempts` = { stepId: ["cmd1", "cmd2", ...] } (every command the player ran
+ * for that step, in order) plus `reveals` (steps where they revealed the answer)
+ * and `downgraded` (whether they dropped difficulty from expert).
+ *
+ * Trust boundary: the server RE-DERIVES the outcome of every step from the hidden
+ * answer key. The client cannot claim full credit — the deduction for a careless
+ * attempt (wrong flags / plausible-but-wrong before the correct command) and the
+ * reveal penalty are computed here, from the real attempt log. A `downgraded` run
+ * is capped at the 'good' band (perfect unreachable once help was taken).
+ *
+ * Backward-compatible: if `attempts` is absent but the legacy `steps`
+ * ({stepId: finalCommand}) is present, each step is graded on that single value.
+ */
+function scoreTerminal(def, result, skipped) {
+  const steps = def.config.steps;
+  const reveals = Array.isArray(result && result.reveals) ? result.reveals : [];
+  const downgraded = Boolean(result && result.downgraded);
+
+  // Normalize input to an attempts-per-step array.
+  const attemptsByStep = {};
+  if (result && result.attempts && typeof result.attempts === 'object') {
+    for (const s of steps) {
+      const a = result.attempts[s.id];
+      attemptsByStep[s.id] = Array.isArray(a) ? a : (a != null ? [a] : []);
+    }
+  } else {
+    const legacy = (result && result.steps) || {};
+    for (const s of steps) {
+      attemptsByStep[s.id] = legacy[s.id] != null ? [legacy[s.id]] : [];
+    }
+  }
+
+  const review = [];
+  let total = 0;
+  for (const s of steps) {
+    const attempts = attemptsByStep[s.id] || [];
+    const revealed = reveals.indexOf(s.id) >= 0;
+
+    // Walk the attempt history: did they ever reach an accepted command, and did
+    // they make a careless (partial/rejected) attempt before getting there?
+    let reachedCorrect = false;
+    let carelessBefore = false;
+    let lastHint = null;
+    let lastTyped = null;
+    for (const raw of attempts) {
+      const c = classifyTerminalCommand(def, s.id, raw);
+      if (c.kind === 'accepted') { reachedCorrect = true; lastTyped = raw; break; }
+      if (c.kind === 'partial' || c.kind === 'rejected') {
+        carelessBefore = true;
+        lastHint = c.text;
+      }
+      lastTyped = raw;
+    }
+
+    let credit = 0;
+    let ok = false;
+    let detail;
+    if (reachedCorrect) {
+      let deduction = 0;
+      if (revealed) deduction += TERMINAL_REVEAL_DEDUCTION;
+      if (carelessBefore) deduction += TERMINAL_CARELESS_DEDUCTION;
+      credit = Math.max(0, 1 - deduction);
+      ok = credit >= 0.999; // only a clean first-try solve counts as fully "ok"
+      detail = credit >= 0.999
+        ? 'Correct: `' + (lastTyped || s.canonical) + '`'
+        : 'Correct after a nudge: `' + (lastTyped || s.canonical) + '`'
+          + (revealed ? ' (answer revealed, −' + TERMINAL_REVEAL_DEDUCTION + ')' : '')
+          + (carelessBefore ? ' (careless attempt first, −' + TERMINAL_CARELESS_DEDUCTION + ')' : '');
+    } else if (lastHint) {
+      // Ended on a partial/rejected attempt without ever correcting.
+      credit = 0;
+      ok = false;
+      detail = lastHint;
+    } else if (attempts.length) {
+      credit = 0;
+      ok = false;
+      detail = 'Wrong: you ran `' + lastTyped + '` — try e.g. `' + s.canonical + '`';
+    } else {
+      credit = 0;
+      ok = false;
+      detail = 'Not attempted — the command was `' + s.canonical + '`';
+    }
+    total += credit;
+    review.push({ label: s.task, ok, detail });
+  }
+
+  const score = clampPct(total / steps.length);
+  const graded = withReview(score, review, skipped);
+  // Downgrade cap: once the player dropped difficulty, 'perfect' is off the table.
+  if (downgraded && !skipped && graded.band === 'perfect') {
+    graded.band = 'good';
+  }
+  return graded;
+}
+
 /**
  * Grade a submitted result (server-side) into a band: 'perfect' | 'good' | 'fail'.
  * `result` shape depends on type. `skipped === true` always grades as 'fail'.
@@ -887,33 +1061,7 @@ function scoreMiniGame(def, result, skipped) {
   }
 
   if (type === 'terminal') {
-    const accepted = def.answer.accepted;
-    const steps = def.config.steps;
-    const submitted = (result && result.steps) || {};
-    const reveals = Array.isArray(result && result.reveals) ? result.reveals : [];
-    const review = [];
-    let solved = 0;
-    for (const s of steps) {
-      const typed = normalizeCmd(submitted[s.id]);
-      const patterns = (accepted[s.id] || []).map(normalizeCmd);
-      const matched = typed && patterns.indexOf(typed) >= 0;
-      const revealed = reveals.indexOf(s.id) >= 0;
-      if (matched) solved++;
-      review.push({
-        label: s.task,
-        ok: !!matched && !revealed,
-        detail: matched
-          ? (revealed
-              ? 'Correct, but you revealed the answer (e.g. `' + s.canonical + '`)'
-              : 'Correct: `' + (submitted[s.id] || s.canonical) + '`')
-          : (submitted[s.id]
-              ? 'Wrong: you ran `' + submitted[s.id] + '` — try e.g. `' + s.canonical + '`'
-              : 'Not attempted — the command was `' + s.canonical + '`'),
-      });
-    }
-    const revealPenalty = 0.1 * reveals.filter((id) => steps.some((s) => s.id === id)).length;
-    const score = clampPct(solved / steps.length - revealPenalty);
-    return withReview(score, review, skipped);
+    return scoreTerminal(def, result, skipped);
   }
 
   // Unknown type → treat as fail (defensive).
@@ -936,6 +1084,29 @@ function bandFromScore(score) {
   return { band: 'fail', score };
 }
 
+/**
+ * Classify a single typed command for live terminal feedback, WITHOUT leaking
+ * the answer key. Returns only what pertains to the command the player actually
+ * typed:
+ *   { kind, output?, hint?, canonicalShown? }
+ * - 'accepted' → includes the step's simulated `output` so the terminal can
+ *   print it (the output is not a secret; it's the whole point of the sim).
+ * - 'partial' / 'rejected' → includes the teaching `hint` for THAT command.
+ * - 'unknown' → nothing but the kind.
+ * This is the only terminal data the server hands back mid-step, so a player
+ * cannot enumerate the key: an 'unknown' reveals nothing, and accepted/partial/
+ * rejected only confirm a command the player already chose to type.
+ */
+function classifyTerminalLive(def, stepId, raw) {
+  const step = (def.config.steps || []).find((s) => s.id === stepId);
+  if (!step) return { kind: 'unknown' };
+  const c = classifyTerminalCommand(def, stepId, raw);
+  if (c.kind === 'accepted') return { kind: 'accepted', output: step.output };
+  if (c.kind === 'partial') return { kind: 'partial', hint: c.text };
+  if (c.kind === 'rejected') return { kind: 'rejected', hint: c.text };
+  return { kind: 'unknown' };
+}
+
 module.exports = {
   MINIGAMES,
   EVENT_MINIGAMES,
@@ -943,4 +1114,7 @@ module.exports = {
   getMiniGame,
   publicMiniGame,
   scoreMiniGame,
+  classifyTerminalLive,
+  TERMINAL_CARELESS_DEDUCTION,
+  TERMINAL_REVEAL_DEDUCTION,
 };

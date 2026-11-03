@@ -15,6 +15,7 @@ const {
   getMiniGame,
   publicMiniGame,
   scoreMiniGame,
+  classifyTerminalLive,
 } = require('./minigames.js');
 
 const clamp = (n, min = 0, max = 100) => Math.max(min, Math.min(max, n));
@@ -164,9 +165,7 @@ function choose(sessionId, { eventId, choiceId }) {
   const choice = event.choices.find((c) => c.id === choiceId);
   if (!choice) throw new GameEngineError('Invalid choice.', 'bad_choice');
 
-  for (const eff of choice.effects) {
-    run.resources[eff.key] = clamp(run.resources[eff.key] + eff.amount);
-  }
+  const deltas = applyEffects(run, choice.effects);
   // Glossary for the debrief: terms appearing in the outcome + learning text.
   const debriefText = {
     prompt: choice.outcome,
@@ -186,11 +185,29 @@ function choose(sessionId, { eventId, choiceId }) {
     isRecommended: choice.isRecommended,
     learning: event.learning,
     eventTitle: event.title,
+    deltas,
     glossary: glossaryFor(debriefText),
   };
 
   advanceStage(run);
   return toView(run);
+}
+
+/**
+ * Apply a list of effects to the run's resources, returning the ACTUAL applied
+ * delta per key (after clamping to 0..100). This lets the client show the player
+ * exactly what each choice/outcome did to each meter this turn. The returned
+ * value is derived state, not a secret — safe to send to the client.
+ */
+function applyEffects(run, effects) {
+  const deltas = { integrity: 0, uptime: 0, budget: 0, morale: 0 };
+  for (const eff of effects || []) {
+    if (!(eff.key in run.resources)) continue; // ignore unknown resource keys
+    const before = run.resources[eff.key];
+    run.resources[eff.key] = clamp(before + eff.amount);
+    deltas[eff.key] += run.resources[eff.key] - before;
+  }
+  return deltas;
 }
 
 /** Advance the run one stage and evaluate win/lose. Shared by choose + minigame. */
@@ -249,9 +266,7 @@ function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
   const band = scored.band;
   const graded = def.grades[band];
 
-  for (const eff of graded.effects) {
-    run.resources[eff.key] = clamp(run.resources[eff.key] + eff.amount);
-  }
+  const deltas = applyEffects(run, graded.effects);
 
   const debriefText = {
     prompt: graded.outcome,
@@ -275,11 +290,42 @@ function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
     review: scored.review,
     learning: event.learning,
     eventTitle: event.title,
+    deltas,
     glossary: glossaryFor(debriefText),
   };
 
   advanceStage(run);
   return toView(run);
+}
+
+/**
+ * Live, mid-step classification for the terminal mini-game. The client sends the
+ * single command the player just typed; the server classifies it against the
+ * hidden key and returns only what pertains to THAT command (simulated output if
+ * accepted, a targeted teaching hint if partial/rejected, nothing if unknown).
+ *
+ * Trust boundary: this is gated to the run's CURRENT event and its mapped
+ * terminal mini-game, so it can't be used to probe other mini-games, and it
+ * never returns the answer key — only a verdict on a command the player chose to
+ * type. Grading still happens authoritatively in submitMiniGame.
+ */
+function classifyTerminal(sessionId, { eventId, minigameId, stepId, command }) {
+  const run = runs.get(sessionId);
+  if (!run) throw new GameEngineError('Session not found.', 'no_session');
+  if (run.status !== 'in_progress') {
+    throw new GameEngineError('This run is already over.', 'run_over');
+  }
+  if (!run.currentEventId || run.currentEventId !== eventId) {
+    throw new GameEngineError('Event mismatch.', 'event_mismatch');
+  }
+  if (miniGameIdForEvent(eventId) !== minigameId) {
+    throw new GameEngineError('Mini-game mismatch.', 'minigame_mismatch');
+  }
+  const def = getMiniGame(minigameId);
+  if (!def || def.type !== 'terminal') {
+    throw new GameEngineError('Not a terminal mini-game.', 'minigame_mismatch');
+  }
+  return classifyTerminalLive(def, stepId, command);
 }
 
 function getView(sessionId) {
@@ -292,6 +338,7 @@ module.exports = {
   startGame,
   choose,
   submitMiniGame,
+  classifyTerminal,
   getView,
   GameEngineError,
 };
