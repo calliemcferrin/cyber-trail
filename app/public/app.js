@@ -35,6 +35,37 @@
     return node;
   }
 
+  // Fisher–Yates shuffle (returns a new array). Used only to randomize the
+  // DISPLAY order of choices / mini-game items so answers aren't always in the
+  // same slot. Purely presentational: the server identifies every choice and
+  // item by id, never by position, so this has no effect on grading or the
+  // anti-cheat trust boundary.
+  function shuffled(arr) {
+    const a = (arr || []).slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // Per-encounter cache of shuffled display orders, so a question's layout is
+  // stable while it's on screen but re-randomizes on a new encounter/run.
+  // Keyed by event id (and reset whenever a new run starts).
+  let shuffleCache = Object.create(null);
+  function orderedChoices(ev) {
+    if (!shuffleCache[ev.id]) shuffleCache[ev.id] = shuffled(ev.choices);
+    return shuffleCache[ev.id];
+  }
+  // Stable-per-encounter shuffle of a named mini-game list (tokens / options /
+  // items / steps). Keyed by event id + list name so it doesn't reshuffle on an
+  // incidental re-render, but re-randomizes on a new run (cache is reset then).
+  function mgOrder(ev, name, list) {
+    const key = ev.id + '::' + name;
+    if (!shuffleCache[key]) shuffleCache[key] = shuffled(list);
+    return shuffleCache[key];
+  }
+
   function render(nodes) {
     app.textContent = '';
     app.classList.remove('fade');
@@ -215,6 +246,7 @@
   async function startJourney() {
     try {
       state.taughtTerms = Object.create(null); // fresh inline-teaching for a new run
+      shuffleCache = Object.create(null);      // fresh answer-position shuffles for a new run
       state.game = await api('/api/game/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -789,7 +821,11 @@
         ev.minigame
           ? miniGameBlock(ev)
           : el('div', {},
-              ev.choices.map((c, i) =>
+              // Shuffle the choice DISPLAY order so the recommended answer isn't
+              // always in the same slot. Cached per event id so it stays stable
+              // while the player is looking at this question (no reshuffling on
+              // an incidental re-render), but a fresh run/encounter re-randomizes.
+              orderedChoices(ev).map((c, i) =>
                 el('button', { class: 'choice', onClick: () => submitChoice(ev.id, c.id) }, [
                   el('span', { class: 'key', text: (keys[i] || '•') + '.' }),
                   c.label,
@@ -859,7 +895,7 @@
           el('div', {}, [el('span', { class: 'mg-label', text: (cfg.subjectLabel || 'Subject') + ': ' }), el('span', { class: 'mg-tok', 'data-id': 'subject', text: cfg.subject })]),
         ]),
         el('div', { class: 'mg-tokens' },
-          cfg.tokens.map((t) => {
+          mgOrder(ev, 'tokens', cfg.tokens).map((t) => {
             const btn = el('button', {
               class: 'mg-token',
               onClick: () => {
@@ -878,7 +914,7 @@
 
     else if (mg.type === 'pick_practices') {
       wrap.appendChild(el('div', { class: 'mg-options' },
-        cfg.options.map((o) => {
+        mgOrder(ev, 'options', cfg.options).map((o) => {
           const btn = el('button', {
             class: 'mg-option',
             onClick: () => {
@@ -899,8 +935,10 @@
 
     else if (mg.type === 'sort_messages') {
       // Each item gets a row of bin buttons; clicking sets its assignment.
+      // Items are shuffled; bins stay in a fixed, labeled order (they're the
+      // answer categories, not answers).
       wrap.appendChild(el('div', { class: 'mg-sort' },
-        cfg.items.map((it) => {
+        mgOrder(ev, 'items', cfg.items).map((it) => {
           const binRow = el('div', { class: 'mg-bins' },
             cfg.bins.map((b) => {
               const bb = el('button', {
@@ -926,7 +964,11 @@
 
     else if (mg.type === 'order_steps') {
       // Click steps in the order you'd perform them; show the chosen order.
+      // IMPORTANT: present the pool in a SHUFFLED order — the authored cfg.steps
+      // order is the correct answer, so showing them pre-sorted would give it
+      // away. The player must build the sequence themselves.
       const chosen = [];
+      const shuffledSteps = mgOrder(ev, 'steps', cfg.steps);
       const chosenBox = el('div', { class: 'mg-order-chosen' });
       const pool = el('div', { class: 'mg-order-pool' });
       function redraw() {
@@ -938,7 +980,7 @@
           ]));
         });
         pool.textContent = '';
-        cfg.steps.filter((s) => chosen.indexOf(s.id) < 0).forEach((s) => {
+        shuffledSteps.filter((s) => chosen.indexOf(s.id) < 0).forEach((s) => {
           pool.appendChild(el('button', { class: 'mg-order-btn', onClick: () => { chosen.push(s.id); redraw(); } }, ['+ ' + s.text]));
         });
       }
