@@ -70,7 +70,19 @@ the server and run the checks **in the same command**, e.g.:
 
 > The standalone at repo root (`cyber-trail-standalone.html`) is a **generated
 > artifact** (git-ignored). Rebuild it with `node app/build-standalone.js` after
-> any `app/` change; it embeds the real grader so its behavior matches the server.
+> any `app/` change.
+>
+> **Single UI source of truth (since the standalone refactor):** the build now
+> inlines `public/app.js` **verbatim** — there is no second copy of the UI to
+> keep in sync. Offline, there's no server, so the build also inlines a small
+> *local API shim* that installs `window.__CYBER_TRAIL_LOCAL__`; the client's
+> `api()` detects that global and routes to the shim instead of `fetch`. The
+> shim mirrors the server routes and reuses the **real** grader, command
+> classifier, and glossary (inlined via `Function#toString` from `minigames.js`
+> / `glossary.js` `_internal` exports), so offline behavior matches the server.
+> A change to `public/app.js` is therefore reflected in the standalone with no
+> manual porting. (The offline demo necessarily ships answer keys since it has
+> no server to hide them behind — the real server app keeps the trust boundary.)
 
 ## Features implemented (all working)
 
@@ -84,6 +96,20 @@ the server and run the checks **in the same command**, e.g.:
   perfect/good/fail → resource deltas; **skippable** = full-loss fail.
 - **Mini-game review:** debrief shows an expandable, attention-styled "Review your
   answers (N wrong)" with per-item right/wrong detail (auto-opens when wrong).
+- **Side-rail HUD:** the four meters sit in a sticky side rail (stacks on mobile)
+  with a per-meter "what moves this?" explainer, and the debrief shows the live
+  per-meter delta from the turn just played (server sends `lastOutcome.deltas`).
+- **Terminal mini-game (enhanced):** a **pre-terminal briefing screen** explains
+  how to use the import terminal; the import terminal has **pinned instructions**
+  (never scroll away), a **`clear`/`cls`** command, and a **drag-to-resize** output
+  area. The Linux triage terminal now grades with **per-step partial credit** (via
+  a server `/api/game/:id/terminal` live-classify endpoint): "right tool, wrong
+  flags" (e.g. bare `ls`) gives a targeted nudge + small recoverable deduction
+  (−0.15), and "plausible but wrong" commands (e.g. `whoami` on the who-is-logged-in
+  step) are rejected with a specific teaching explanation. **Expert mode** offers a
+  "drop to Comfortable" button that enables hints but **caps the band at `good`**
+  (perfect unreachable once help is taken). The answer key never reaches the
+  client — the live endpoint only verdicts the one command the player typed.
 - **Import/mission terminal** (desktop only; **skipped on mobile** via
   touch+narrow detection): type `import <facility> --<role>`, THEN (for gated
   roles) an access code. **Flavor only, not scored.** Gates:
