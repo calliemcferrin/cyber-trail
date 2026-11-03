@@ -3682,6 +3682,181 @@ const EVENTS = [
       mitreAttck: 'T1598',
     },
   },
+
+  // ───────────────────────── FUNDING / GRANTS (all facilities) ─────────────────────────
+  // An additive, mid-journey step about securing the money that makes defense
+  // possible. The Supervisor plays a mini-game (grant/funding prioritization)
+  // that can EARN budget; the Operator and Employee see role-specific questions
+  // on the same theme. Inserted at the journey midpoint by the engine and
+  // always skippable — but a Supervisor who skips it AND was imperfect anywhere
+  // else loses the run (see engine: the funding safety net).
+  {
+    id: 'funding_grants_supervisor',
+    title: 'Securing the Funding',
+    prompt:
+      'Your defenses are only as strong as the budget behind them. A federal ' +
+      'infrastructure cybersecurity grant cycle is open, and the board will ' +
+      'match funds for a well-justified request. Build the strongest case for ' +
+      'funding — this mini-game can EARN budget back for the facility. (It is ' +
+      'optional, but going without the money you could have secured is a risk.)',
+    facilities: ['water', 'power', 'hospital', 'gas', 'government'],
+    roles: ['supervisor'],
+    // This event is resolved via its mini-game (see EVENT_MINIGAMES →
+    // fund_the_defense). The choices below are a fallback only.
+    choices: [
+      {
+        id: 'skip_funding',
+        label: 'Don\u2019t pursue funding this cycle.',
+        effects: [{ key: 'budget', amount: -10 }],
+        isRecommended: false,
+        outcome:
+          'You left money on the table. Grants and board matching are how ' +
+          'critical-infrastructure security actually gets paid for — skipping a ' +
+          'cycle means defending on a shoestring.',
+      },
+      {
+        id: 'pursue_funding',
+        label: 'Build and submit a strong, well-justified funding request.',
+        effects: [{ key: 'budget', amount: 25 }],
+        isRecommended: true,
+        outcome:
+          'A clear, risk-based request won the grant and the board match. ' +
+          'Funding secured is defense enabled.',
+      },
+    ],
+    learning: {
+      attackType: 'Security Funding / Grant Strategy',
+      summary:
+        'Cyber defense runs on money. Supervisors who can justify spending in ' +
+        'risk and business terms — and who pursue grants and matching funds — ' +
+        'are what make every technical control affordable.',
+      realWorldExample:
+        'US programs like the State and Local Cybersecurity Grant Program and ' +
+        'CISA funding exist specifically to help critical-infrastructure and ' +
+        'public bodies pay for security they could not otherwise afford.',
+      preventiveMeasures: [
+        'Treat funding as a security control: no budget, no defense.',
+        'Justify spend in risk and business-impact terms leadership understands.',
+        'Pursue grants and matching funds every cycle — do not leave money unclaimed.',
+        'Tie each dollar to the specific risk it reduces.',
+      ],
+      mitreAttck: 'N/A',
+    },
+  },
+  {
+    id: 'funding_grants_operator',
+    title: 'Backing the Funding Request',
+    prompt:
+      'Your supervisor is assembling a cybersecurity funding/grant request and ' +
+      'asks you — the operator on the keyboard — for the input that will make ' +
+      'the strongest case. What do you give them?',
+    facilities: ['water', 'power', 'hospital', 'gas', 'government'],
+    roles: ['operator'],
+    choices: [
+      {
+        id: 'vague_ask',
+        label: 'Tell them to "just ask for as much as possible."',
+        effects: [{ key: 'budget', amount: -5 }, { key: 'morale', amount: -2 }],
+        isRecommended: false,
+        outcome:
+          'An unjustified, round-number ask is the easiest thing for a funder ' +
+          'to reject. Money follows evidence, not optimism.',
+      },
+      {
+        id: 'hardware_only',
+        label: 'Push for one big, visible hardware purchase.',
+        effects: [{ key: 'budget', amount: 3 }, { key: 'integrity', amount: 2 }],
+        isRecommended: false,
+        outcome:
+          'Flashy hardware is easy to point at but rarely the highest-impact ' +
+          'spend. A request built around one shiny box ignores the gaps that ' +
+          'actually get exploited.',
+      },
+      {
+        id: 'risk_evidence',
+        label: 'Provide concrete risk data: current gaps, incident costs, and the risk each dollar reduces.',
+        effects: [{ key: 'budget', amount: 12 }, { key: 'integrity', amount: 3 }],
+        isRecommended: true,
+        outcome:
+          'You gave the supervisor exactly what wins funding: evidence. A ' +
+          'request tied to specific risks and the cost of inaction is the kind ' +
+          'grant reviewers and boards actually fund.',
+      },
+    ],
+    learning: {
+      attackType: 'Security Funding / Grant Strategy',
+      summary:
+        'Funding requests win on evidence. Operators hold the technical facts — ' +
+        'gaps, alerts, near-misses — that turn a vague ask into a fundable case.',
+      realWorldExample:
+        'Grant programs for critical infrastructure (e.g. the State and Local ' +
+        'Cybersecurity Grant Program) reward applications that map spending to ' +
+        'assessed risk rather than wish-lists.',
+      preventiveMeasures: [
+        'Document gaps, incidents, and near-misses — they are funding evidence.',
+        'Map each requested dollar to a specific risk it reduces.',
+        'Favor highest-impact controls over the most visible hardware.',
+      ],
+      mitreAttck: 'N/A',
+    },
+  },
+  {
+    id: 'funding_grants_employee',
+    title: 'Your Part in the Funding Case',
+    prompt:
+      'Leadership is applying for a cybersecurity grant and asks all staff to ' +
+      'help show why it matters. As an entry-level employee, what is the most ' +
+      'useful thing you can do?',
+    facilities: ['water', 'power', 'hospital', 'gas', 'government'],
+    roles: ['employee'],
+    choices: [
+      {
+        id: 'ignore_it',
+        label: 'Assume funding is "management\u2019s problem" and ignore the request.',
+        effects: [{ key: 'morale', amount: -3 }],
+        isRecommended: false,
+        outcome:
+          'Funding cases are strongest when they show real, ground-level need. ' +
+          'Staying out of it leaves leadership without the frontline evidence ' +
+          'that makes a grant compelling.',
+      },
+      {
+        id: 'exaggerate',
+        label: 'Invent dramatic incidents to make the need look bigger.',
+        effects: [{ key: 'integrity', amount: -6 }, { key: 'morale', amount: -2 }],
+        isRecommended: false,
+        outcome:
+          'Fabricated evidence can sink an application and your credibility. ' +
+          'Grant reviewers verify claims — honesty is not just ethical, it is ' +
+          'what keeps the money coming.',
+      },
+      {
+        id: 'report_reality',
+        label: 'Accurately report the real friction and near-misses you see day to day.',
+        effects: [{ key: 'budget', amount: 8 }, { key: 'morale', amount: 3 }],
+        isRecommended: true,
+        outcome:
+          'Honest frontline detail — the phishing you catch, the clunky tools, ' +
+          'the close calls — is exactly the real-world evidence that makes a ' +
+          'funding case credible and fundable.',
+      },
+    ],
+    learning: {
+      attackType: 'Security Funding / Grant Strategy',
+      summary:
+        'Everyone contributes to the funding case. Honest frontline reporting of ' +
+        'real risks and friction is powerful, credible evidence for a grant.',
+      realWorldExample:
+        'Strong public-sector cyber grant applications document real operational ' +
+        'risk; fabricated or absent evidence undermines them.',
+      preventiveMeasures: [
+        'Report real security friction and near-misses honestly.',
+        'Never exaggerate or fabricate — it destroys a funding case and trust.',
+        'Recognize that frontline experience is valuable funding evidence.',
+      ],
+      mitreAttck: 'N/A',
+    },
+  },
 ];
 
 /** Events available for a given facility + role combination. */

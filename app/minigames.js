@@ -783,6 +783,57 @@ const MINIGAMES = {
       },
     },
   },
+
+  // ───────────────── Fund the Defense (grant / funding request) ─────────────────
+  // SUPERVISOR mini-game. Unlike every other mini-game (which at best protects a
+  // meter), this one can EARN budget: a well-built funding/grant request brings
+  // money IN. Player picks the elements of a strong, fundable request and avoids
+  // the weak ones. Teaches that defense is paid for by funding, and funding is
+  // won with risk-based evidence, not flashy asks.
+  fund_the_defense: {
+    type: 'pick_practices',
+    attackType: 'Security Funding / Grant Strategy',
+    config: {
+      instructions:
+        'Build the strongest case for a cybersecurity funding / grant request. ' +
+        'Select every element that makes a request fundable, and avoid the weak ' +
+        'ones. A strong request EARNS budget for the facility. Submit when ready.',
+      options: [
+        { id: 'o1', text: 'Map each requested dollar to a specific risk it reduces' },
+        { id: 'o2', text: 'Document real gaps, incidents, and near-misses as evidence' },
+        { id: 'o3', text: 'Apply for the matching grant and the board\u2019s matching funds' },
+        { id: 'o4', text: 'Ask for a big round number with no justification' },
+        { id: 'o5', text: 'Center the whole request on one flashy hardware purchase' },
+        { id: 'o6', text: 'Exaggerate incidents to make the need look bigger' },
+      ],
+    },
+    answer: { good: ['o1', 'o2', 'o3'], bad: ['o4', 'o5', 'o6'] },
+    grades: {
+      // NOTE: budget-POSITIVE on success — this is the facility's way to earn
+      // money back. Perfect brings in a meaningful grant + board match.
+      perfect: {
+        effects: [{ key: 'budget', amount: 30 }, { key: 'morale', amount: 3 }],
+        outcome:
+          'A textbook funding case: every dollar tied to a specific risk, backed ' +
+          'by real evidence, and paired with grant + board matching. The money ' +
+          'came in — and funded defense is defense that actually happens.',
+      },
+      good: {
+        effects: [{ key: 'budget', amount: 12 }],
+        outcome:
+          'A solid request that won some funding. The strongest cases tie every ' +
+          'dollar to a specific risk, use real incident evidence, and chase every ' +
+          'grant and matching-fund source available.',
+      },
+      fail: {
+        effects: [{ key: 'budget', amount: -12 }],
+        outcome:
+          'The request fell flat. Unjustified round numbers, one-shiny-box asks, ' +
+          'and exaggerated claims are exactly what funders reject — leaving the ' +
+          'facility to defend itself on a shoestring.',
+      },
+    },
+  },
 };
 
 /**
@@ -812,6 +863,8 @@ const EVENT_MINIGAMES = {
   // Segment the network (IT/OT zone assignment)
   it_ot_convergence_gas: 'segment_network_zones',
   ot_segmentation_water: 'segment_network_zones',
+  // Fund the defense (supervisor funding/grant request — can EARN budget)
+  funding_grants_supervisor: 'fund_the_defense',
 };
 
 function miniGameIdForEvent(eventId) {

@@ -36,6 +36,17 @@ const DIFFICULTY = {
   startPenalty: { integrity: 10, uptime: 5, budget: 10, morale: 10 },
 };
 
+/**
+ * The mid-journey funding/grant event for each role. The Supervisor's is a
+ * mini-game that can EARN budget; the Operator/Employee versions are questions.
+ * Inserted at the journey midpoint as an additive, skippable step.
+ */
+const FUNDING_EVENT_IDS = {
+  supervisor: 'funding_grants_supervisor',
+  operator: 'funding_grants_operator',
+  employee: 'funding_grants_employee',
+};
+
 /** Fisher–Yates shuffle. */
 function shuffle(arr) {
   const a = arr.slice();
@@ -106,6 +117,7 @@ function toView(run) {
     score: computeScore(run),
     currentEvent,
     lastOutcome: run.lastOutcome,
+    loseReason: run.loseReason || null,
   };
 }
 
@@ -120,19 +132,33 @@ function startGame({ facilityId, roleId }) {
   if (pool.length === 0) {
     throw new GameEngineError('No scenarios available.', 'no_content');
   }
-  const totalStages = Math.min(facility.stages, pool.length);
-  const deck = shuffle(pool.map((e) => e.id)).slice(0, totalStages);
+  // The funding/grant event is handled specially: it's an ADDITIVE, mid-journey
+  // step (not part of the random scenario count), so separate it from the pool.
+  const fundingEvent = pool.find((e) => e.id === FUNDING_EVENT_IDS[roleId]);
+  const scenarioPool = pool.filter((e) => e.id !== (fundingEvent && fundingEvent.id));
+
+  const scenarioCount = Math.min(facility.stages, scenarioPool.length);
+  const deck = shuffle(scenarioPool.map((e) => e.id)).slice(0, scenarioCount);
+
+  // Insert the funding event at the journey midpoint (if one exists for this
+  // role). This makes the run one stage longer than the scenario count.
+  let fundingEventId = null;
+  if (fundingEvent) {
+    fundingEventId = fundingEvent.id;
+    const mid = Math.floor(deck.length / 2);
+    deck.splice(mid, 0, fundingEventId);
+  }
+  const totalStages = deck.length;
   const now = Date.now();
   // Reduced starting resources — less cushion than the facility's base.
   const base = facility.startingResources;
+  // Per-facility starting budget (reduced by the start penalty like the other
+  // meters). Budget is a managed resource again: it starts lean and the new
+  // funding mini-game (mid-journey) is how a facility EARNS money back.
   const startResources = {
     integrity: clamp(base.integrity - DIFFICULTY.startPenalty.integrity),
     uptime: clamp(base.uptime - DIFFICULTY.startPenalty.uptime),
-    // Budget always starts full. It's the one meter the player can't quickly
-    // rebuild through good play, so a reduced start felt punishing from stage 1
-    // ("drowning"). Start at 100 and let the ongoing drain + costly choices be
-    // the pressure, rather than a low opening balance.
-    budget: 100,
+    budget: clamp(base.budget - DIFFICULTY.startPenalty.budget),
     morale: clamp(base.morale - DIFFICULTY.startPenalty.morale),
   };
   const run = {
@@ -146,6 +172,13 @@ function startGame({ facilityId, roleId }) {
     deck,
     currentEventId: deck[0] || null,
     lastOutcome: null,
+    // Funding-event tracking (for the Supervisor skip rule). `fundingEventId` is
+    // the mid-journey funding step for this role; `fundingSkipped` records a
+    // skip; `imperfectElsewhere` is set true if ANY non-funding event was less
+    // than perfect (a non-recommended choice, or a mini-game band below perfect).
+    fundingEventId,
+    fundingSkipped: false,
+    imperfectElsewhere: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -193,8 +226,30 @@ function choose(sessionId, { eventId, choiceId }) {
     glossary: glossaryFor(debriefText),
   };
 
+  // Track run quality for the funding skip rule.
+  trackFundingQuality(run, event.id, {
+    skipped: false,
+    perfect: !!choice.isRecommended,
+  });
+
   advanceStage(run);
   return toView(run);
+}
+
+/**
+ * Update the funding-rule tracking after an event resolves.
+ * - If this is the funding event and it was skipped → mark fundingSkipped.
+ * - If this is ANY OTHER event and it wasn't a top-mark result → mark
+ *   imperfectElsewhere (a non-recommended choice, or a mini-game below perfect).
+ * The funding event's own result never sets imperfectElsewhere (the rule is
+ * explicitly "perfect APART FROM the funding mini-game").
+ */
+function trackFundingQuality(run, eventId, { skipped, perfect }) {
+  if (eventId === run.fundingEventId) {
+    if (skipped) run.fundingSkipped = true;
+  } else if (!perfect) {
+    run.imperfectElsewhere = true;
+  }
 }
 
 /**
@@ -231,11 +286,26 @@ function advanceStage(run) {
     run.status = 'lost';
     run.currentEventId = null;
   } else if (run.stage >= run.totalStages) {
-    run.status = 'won';
+    // Reached the end. Apply the funding safety-net rule before declaring a win:
+    // skipping the funding step is only forgiven on an otherwise-perfect run.
+    if (run.fundingSkipped && run.imperfectElsewhere) {
+      run.status = 'lost';
+      run.loseReason = 'funding';
+    } else {
+      run.status = 'won';
+    }
     run.currentEventId = null;
   } else {
     run.currentEventId = run.deck[run.stage] || null;
-    if (!run.currentEventId) run.status = 'won';
+    if (!run.currentEventId) {
+      // Deck exhausted early — same end-of-run funding check applies.
+      if (run.fundingSkipped && run.imperfectElsewhere) {
+        run.status = 'lost';
+        run.loseReason = 'funding';
+      } else {
+        run.status = 'won';
+      }
+    }
   }
   run.updatedAt = Date.now();
 }
@@ -307,6 +377,14 @@ function submitMiniGame(sessionId, { eventId, minigameId, result, skipped }) {
     deltas,
     glossary: glossaryFor(debriefText),
   };
+
+  // Track run quality for the funding skip rule. A skipped funding mini-game
+  // records the skip; any OTHER mini-game below the 'perfect' band counts as
+  // imperfect-elsewhere.
+  trackFundingQuality(run, event.id, {
+    skipped: Boolean(skipped),
+    perfect: band === 'perfect',
+  });
 
   advanceStage(run);
   return toView(run);

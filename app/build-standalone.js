@@ -193,6 +193,7 @@ ${matrixJs}
       sessionId: 'local', facilityId: r.facilityId, roleId: r.roleId,
       stage: r.stage, totalStages: r.totalStages, resources: r.resources,
       status: r.status, score: computeScore(r), currentEvent: ev, lastOutcome: r.lastOutcome,
+      loseReason: r.loseReason || null,
     };
   }
 
@@ -207,6 +208,14 @@ ${matrixJs}
     return deltas;
   }
 
+  var FUNDING_EVENT_IDS = { supervisor: 'funding_grants_supervisor', operator: 'funding_grants_operator', employee: 'funding_grants_employee' };
+
+  // Mirror of the server's funding-rule tracking (see engine.js).
+  function trackFundingQuality(r, eventId, info) {
+    if (eventId === r.fundingEventId) { if (info.skipped) r.fundingSkipped = true; }
+    else if (!info.perfect) { r.imperfectElsewhere = true; }
+  }
+
   function advanceStage(r) {
     r.stage += 1;
     var d = DIFFICULTY.stageDrain;
@@ -215,9 +224,13 @@ ${matrixJs}
     r.resources.budget = clamp(r.resources.budget - d.budget);
     r.resources.morale = clamp(r.resources.morale - d.morale);
     var t = DIFFICULTY.loseThreshold;
+    function endRun() {
+      if (r.fundingSkipped && r.imperfectElsewhere) { r.status = 'lost'; r.loseReason = 'funding'; }
+      else { r.status = 'won'; }
+    }
     if (r.resources.integrity <= t || r.resources.uptime <= t) { r.status = 'lost'; r.currentEventId = null; }
-    else if (r.stage >= r.totalStages) { r.status = 'won'; r.currentEventId = null; }
-    else { r.currentEventId = r.deck[r.stage] || null; if (!r.currentEventId) r.status = 'won'; }
+    else if (r.stage >= r.totalStages) { endRun(); r.currentEventId = null; }
+    else { r.currentEventId = r.deck[r.stage] || null; if (!r.currentEventId) endRun(); }
   }
 
   function startGame(fid, rid) {
@@ -225,16 +238,21 @@ ${matrixJs}
     if (!fac || !role) return err('Unknown facility or role.');
     var pool = eventsFor(fid, rid);
     if (!pool.length) return err('No scenarios available.');
-    var totalStages = Math.min(fac.stages, pool.length);
-    var deck = shuffle(pool.map(function (e) { return e.id; })).slice(0, totalStages);
+    var fundingEvent = pool.filter(function (e) { return e.id === FUNDING_EVENT_IDS[rid]; })[0];
+    var scenarioPool = pool.filter(function (e) { return !fundingEvent || e.id !== fundingEvent.id; });
+    var scenarioCount = Math.min(fac.stages, scenarioPool.length);
+    var deck = shuffle(scenarioPool.map(function (e) { return e.id; })).slice(0, scenarioCount);
+    var fundingEventId = null;
+    if (fundingEvent) { fundingEventId = fundingEvent.id; deck.splice(Math.floor(deck.length / 2), 0, fundingEventId); }
     var b = fac.startingResources, sp = DIFFICULTY.startPenalty;
     run = {
-      facilityId: fid, roleId: rid, stage: 0, totalStages: totalStages,
+      facilityId: fid, roleId: rid, stage: 0, totalStages: deck.length,
       resources: {
         integrity: clamp(b.integrity - sp.integrity), uptime: clamp(b.uptime - sp.uptime),
-        budget: 100, morale: clamp(b.morale - sp.morale), // budget always starts full
+        budget: clamp(b.budget - sp.budget), morale: clamp(b.morale - sp.morale),
       },
       status: 'in_progress', deck: deck, currentEventId: deck[0] || null, lastOutcome: null,
+      fundingEventId: fundingEventId, fundingSkipped: false, imperfectElsewhere: false,
     };
     return ok(201, toView(run));
   }
@@ -254,6 +272,7 @@ ${matrixJs}
       learning: ev.learning, eventTitle: ev.title, deltas: deltas,
       glossary: glossaryForText([ch.outcome, ev.learning.summary, ev.learning.realWorldExample, ev.learning.preventiveMeasures.join(' ')]),
     };
+    trackFundingQuality(run, ev.id, { skipped: false, perfect: !!ch.isRecommended });
     advanceStage(run);
     return ok(200, toView(run));
   }
@@ -282,6 +301,7 @@ ${matrixJs}
       review: scored.review, learning: ev.learning, eventTitle: ev.title, deltas: deltas,
       glossary: glossaryForText([graded.outcome, ev.learning.summary, ev.learning.realWorldExample, ev.learning.preventiveMeasures.join(' ')]),
     };
+    trackFundingQuality(run, ev.id, { skipped: !!body.skipped, perfect: scored.band === 'perfect' });
     advanceStage(run);
     return ok(200, toView(run));
   }

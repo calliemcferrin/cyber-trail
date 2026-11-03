@@ -57,6 +57,16 @@
     if (!shuffleCache[ev.id]) shuffleCache[ev.id] = shuffled(ev.choices);
     return shuffleCache[ev.id];
   }
+
+  // Clear all per-run client state so the next run starts clean. Budget and all
+  // meters are server-authoritative and re-initialized by startGame(), so this
+  // mainly resets the game handle + the UI caches (acronym teaching, shuffles).
+  // Called when starting a new facility/role without reloading the app.
+  function resetRunState() {
+    state.game = null;
+    shuffleCache = Object.create(null);
+    state.taughtTerms = Object.create(null);
+  }
   // Stable-per-encounter shuffle of a named mini-game list (tokens / options /
   // items / steps). Keyed by event id + list name so it doesn't reshuffle on an
   // incidental re-render, but re-randomizes on a new run (cache is reset then).
@@ -1326,14 +1336,24 @@
           ? 'You guided your facility through the gauntlet. The lights stayed on, ' +
             'the systems stayed clean, and your people stayed sharp. This is what ' +
             'defense in depth looks like.'
-          : 'A meter hit zero — a breach or outage you could not recover from. In ' +
-            'critical infrastructure the stakes are real. Study the debriefs, learn ' +
-            'the preventive measures, and run the trail again.' }),
+          : g.loseReason === 'funding'
+            ? 'You skipped securing funding — and because the rest of your run ' +
+              'wasn\u2019t flawless, there was no margin to make up for it. Without ' +
+              'the budget to back it, your defense couldn\u2019t do its job. Funding ' +
+              'is a security control: pursue it unless you can afford perfection ' +
+              'everywhere else.'
+            : 'A meter hit the danger threshold — a breach or outage you could ' +
+              'not recover from. In critical infrastructure the stakes are real. ' +
+              'Study the debriefs, learn the preventive measures, and run the ' +
+              'trail again.' }),
         el('p', { class: 'score', text: 'FINAL SCORE: ' + g.score }),
         hud(g),
         el('div', { class: 'btn-row', style: 'justify-content:center' }, [
-          el('button', { class: 'btn', onClick: () => { state.game = null; titleScreen(); }, text: '↺ Play Again' }),
-          el('button', { class: 'btn secondary', onClick: () => { state.facilityId = null; state.roleId = null; startFlow(); }, text: '⇄ New Facility / Role' }),
+          // Both paths start a brand-new run via startGame(), which re-initializes
+          // ALL resources (including budget) for the chosen facility — so playing
+          // a new facility without restarting the app fully resets the budget.
+          el('button', { class: 'btn', onClick: () => { resetRunState(); titleScreen(); }, text: '↺ Play Again' }),
+          el('button', { class: 'btn secondary', onClick: () => { resetRunState(); state.facilityId = null; state.roleId = null; startFlow(); }, text: '⇄ New Facility / Role' }),
         ]),
       ]),
     ]);
