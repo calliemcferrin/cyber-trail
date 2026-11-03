@@ -75,7 +75,15 @@
   }
 
   // ------------------------- state -------------------------
-  const state = { facilities: [], roles: [], facilityId: null, roleId: null, game: null };
+  // `taughtTerms` tracks which acronyms have already been explained INLINE this
+  // playthrough. An acronym is highlighted with a popover the first stage it
+  // appears in; after that it falls back to the bottom "Beyond the acronym"
+  // panel only. Reset on each new run. Purely a client-side teaching aid — no
+  // bearing on scoring or the server trust boundary.
+  const state = {
+    facilities: [], roles: [], facilityId: null, roleId: null, game: null,
+    taughtTerms: Object.create(null),
+  };
 
   // ------------------------- screens -------------------------
   function titleScreen() {
@@ -206,6 +214,7 @@
 
   async function startJourney() {
     try {
+      state.taughtTerms = Object.create(null); // fresh inline-teaching for a new run
       state.game = await api('/api/game/start', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -549,6 +558,88 @@
     ]);
   }
 
+  // ------------------------- inline acronym popovers -------------------------
+  // Only one popover is open at a time. Clicking the term toggles it; clicking
+  // elsewhere, pressing Esc, or opening another term closes it.
+  let openPopover = null;
+  function closePopover() {
+    if (openPopover && openPopover.parentNode) openPopover.parentNode.removeChild(openPopover);
+    openPopover = null;
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePopover(); });
+  // Clicking anywhere outside the open chip/popover closes it. The chip and the
+  // popover both stopPropagation on their own clicks, so this only fires for
+  // "outside" clicks (bubble phase).
+  document.addEventListener('click', () => closePopover());
+
+  // Build an interactive acronym chip with an on-demand definition popover.
+  function acronymChip(entry) {
+    const chip = el('button', {
+      class: 'acro' + (entry.useCase ? ' acro-deep' : ''),
+      type: 'button',
+      'aria-label': entry.term + ' — show definition',
+      title: 'what is ' + entry.term + '?',
+    }, [entry.term]);
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation(); // don't let the document handler treat this as "outside"
+      const wasThis = openPopover && openPopover.__term === entry.term;
+      closePopover();
+      if (wasThis) return; // toggle off
+      const pop = el('span', { class: 'acro-pop' }, [
+        el('span', { class: 'acro-pop-term', text: entry.term }),
+        el('span', { class: 'acro-pop-def', text: entry.definition }),
+        entry.useCase ? el('span', { class: 'acro-pop-use' }, [
+          el('span', { class: 'acro-pop-use-label', text: 'In practice: ' }),
+          entry.useCase,
+        ]) : null,
+      ]);
+      pop.__term = entry.term;
+      pop.addEventListener('click', (ev) => ev.stopPropagation()); // clicks inside stay open
+      chip.appendChild(pop);
+      openPopover = pop;
+    });
+    return chip;
+  }
+
+  // Render a text string into an array of text nodes + acronym chips. Only the
+  // acronyms in `entries` (this event's detected terms) that have NOT yet been
+  // taught inline this run are turned into chips; each is marked taught after
+  // its FIRST occurrence so repeats in the same text aren't all chips. Terms
+  // already taught on a previous stage are left as plain text (they live in the
+  // bottom glossary instead).
+  function withAcronyms(text, entries) {
+    if (!text || !entries || !entries.length) return [text];
+    // Candidates = detected terms not yet taught this run, longest-first so a
+    // term like "SCADA" is matched before a shorter overlapping token.
+    const byTerm = {};
+    entries.forEach((e) => { byTerm[e.term] = e; });
+    const candidates = entries
+      .map((e) => e.term)
+      .filter((t) => !state.taughtTerms[t])
+      .sort((a, b) => b.length - a.length);
+    if (!candidates.length) return [text];
+    const esc = candidates.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    // Word-boundary-ish match with optional trailing plural s (acronyms are
+    // uppercase tokens): capture the surrounding non-alphanumerics.
+    const re = new RegExp('(^|[^A-Za-z0-9])(' + esc.join('|') + ')(s?)(?=[^A-Za-z0-9]|$)', 'g');
+    const nodes = [];
+    let last = 0;
+    let m;
+    while ((m = re.exec(text))) {
+      const term = m[2];
+      // Only chip the FIRST occurrence of each term; mark it taught.
+      if (state.taughtTerms[term]) continue;
+      const start = m.index + m[1].length;
+      if (start > last) nodes.push(text.slice(last, start));
+      nodes.push(acronymChip(byTerm[term]));
+      if (m[3]) nodes.push(m[3]); // preserve a trailing plural "s" as text
+      state.taughtTerms[term] = true;
+      last = start + term.length + (m[3] ? m[3].length : 0);
+    }
+    if (last < text.length) nodes.push(text.slice(last));
+    return nodes.length ? nodes : [text];
+  }
+
   // ------------------------- glossary ("Beyond the acronym") -------------------------
   // Optional, collapsed-by-default reference so players who know the jargon
   // aren't forced to read definitions, while learners can expand them.
@@ -559,7 +650,15 @@
       el('dl', { class: 'glossary-list' },
         terms.reduce((nodes, t) => {
           nodes.push(el('dt', { text: t.term }));
-          nodes.push(el('dd', { text: t.definition }));
+          nodes.push(el('dd', {}, [
+            t.definition,
+            // Show the deeper "In practice" note for the enriched OT/networking
+            // terms here too, so the bottom panel mirrors the inline popover.
+            t.useCase ? el('span', { class: 'glossary-use' }, [
+              el('span', { class: 'glossary-use-label', text: 'In practice: ' }),
+              t.useCase,
+            ]) : null,
+          ]));
           return nodes;
         }, []),
       ),
@@ -607,7 +706,10 @@
       gameLayout(g, el('div', { class: 'panel' }, [
         el('p', { class: 'eyebrow', text: ev.minigame ? '// INTERACTIVE CHALLENGE' : '// INCOMING EVENT' }),
         el('h2', { class: 'subtitle', text: ev.title }),
-        el('p', { class: 'prompt-text', text: ev.prompt }),
+        // Prompt with inline acronym popovers (first encounter this run). This
+        // must render before glossaryBlock so the bottom panel knows which
+        // terms were just taught inline.
+        el('p', { class: 'prompt-text' }, withAcronyms(ev.prompt, ev.glossary)),
         ev.minigame
           ? miniGameBlock(ev)
           : el('div', {},
