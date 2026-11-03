@@ -232,7 +232,7 @@ ${matrixJs}
       facilityId: fid, roleId: rid, stage: 0, totalStages: totalStages,
       resources: {
         integrity: clamp(b.integrity - sp.integrity), uptime: clamp(b.uptime - sp.uptime),
-        budget: clamp(b.budget - sp.budget), morale: clamp(b.morale - sp.morale),
+        budget: 100, morale: clamp(b.morale - sp.morale), // budget always starts full
       },
       status: 'in_progress', deck: deck, currentEventId: deck[0] || null, lastOutcome: null,
     };

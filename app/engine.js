@@ -128,7 +128,11 @@ function startGame({ facilityId, roleId }) {
   const startResources = {
     integrity: clamp(base.integrity - DIFFICULTY.startPenalty.integrity),
     uptime: clamp(base.uptime - DIFFICULTY.startPenalty.uptime),
-    budget: clamp(base.budget - DIFFICULTY.startPenalty.budget),
+    // Budget always starts full. It's the one meter the player can't quickly
+    // rebuild through good play, so a reduced start felt punishing from stage 1
+    // ("drowning"). Start at 100 and let the ongoing drain + costly choices be
+    // the pressure, rather than a low opening balance.
+    budget: 100,
     morale: clamp(base.morale - DIFFICULTY.startPenalty.morale),
   };
   const run = {
