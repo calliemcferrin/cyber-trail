@@ -81,11 +81,16 @@ const MINIGAMES = {
       instructions:
         'This "safety bulletin" wants you to log in. Click every suspicious ' +
         'element, then submit.',
+      // Known-good reference so the look-alike sender is detectable by comparison.
+      knownGood:
+        'What you already know: your real safety bulletins come from the ' +
+        '"cascade-gas.com" intranet, and they never ask you to log in from a ' +
+        'link.',
       from: 'Pipeline Safety <alerts@cascade-gas-safety.net>',
       subject: 'MANDATORY acknowledgment required within the hour',
       tokens: [
         { id: 't1', text: 'alerts@cascade-gas-safety.net' },
-        { id: 't2', text: 'MANDATORY … within the hour' },
+        { id: 't2', text: 'MANDATORY acknowledgment required within the hour' },
         { id: 't3', text: 'or be flagged non-compliant' },
         { id: 't4', text: 'Sign in here to confirm you have read this' },
         { id: 't5', text: 'Q3 compressor maintenance schedule' },
@@ -96,15 +101,15 @@ const MINIGAMES = {
       perfect: {
         effects: [{ key: 'integrity', amount: 8 }, { key: 'morale', amount: 2 }],
         outcome:
-          'You flagged the wrong domain, the compliance-deadline pressure, and ' +
-          'the login link. Safety themes are bait in industrial settings — and ' +
-          'you did not bite.',
+          'You flagged the look-alike domain (not your real "cascade-gas.com"), ' +
+          'the compliance-deadline pressure and its threat, and the login link. ' +
+          'Safety themes are bait in industrial settings — and you did not bite.',
       },
       good: {
         effects: [{ key: 'integrity', amount: 3 }],
         outcome:
-          'Enough red flags spotted to stay safe. The sending domain ' +
-          '("cascade-gas-safety.net", not your real intranet) was the key tell.',
+          'Enough red flags spotted to stay safe. The key tell: the sender ' +
+          '("cascade-gas-safety.net") is not your real "cascade-gas.com" intranet.',
       },
       fail: {
         effects: [{ key: 'integrity', amount: -18 }, { key: 'morale', amount: -3 }],
@@ -215,6 +220,10 @@ const MINIGAMES = {
       instructions:
         'This "open enrollment" email wants you to log in. Click every ' +
         'suspicious element, then submit.',
+      // Known-good reference so the look-alike HR domain is detectable.
+      knownGood:
+        'What you already know: St. Mercy\u2019s real HR portal is at "stmercy.org", ' +
+        'and you always reach it from your own bookmark — never from an email link.',
       from: 'HR Benefits <benefits@stmercy-hr-portal.com>',
       subject: 'ACTION REQUIRED: confirm benefits before enrollment closes TONIGHT',
       tokens: [
@@ -237,34 +246,49 @@ const MINIGAMES = {
       good: {
         effects: [{ key: 'integrity', amount: 3 }],
         outcome:
-          'Enough red flags caught to stay safe. The sending domain and the ' +
-          'manufactured deadline were the biggest tells.',
+          'Enough red flags caught to stay safe. The biggest tell: the sender ' +
+          '("stmercy-hr-portal.com") is not the real "stmercy.org" HR portal.',
       },
       fail: {
         effects: [{ key: 'integrity', amount: -20 }, { key: 'morale', amount: -4 }],
         outcome:
-          'The deadline pressure worked and credentials were harvested. Always ' +
-          'reach the real portal from your own bookmark, never an email link.',
+          'The deadline pressure worked and credentials were harvested. The ' +
+          'sender was a look-alike ("stmercy-hr-portal.com", not "stmercy.org") — ' +
+          'always reach the real portal from your own bookmark, never an email link.',
       },
     },
   },
 
   // ───────── Spot the Deepfake: red flags in a "viral" video ─────────
+  // Reuses the spot_the_phish renderer, but this is NOT an email — it is a
+  // social-media post. The header carries the post's source/claim (real,
+  // useful context for judging it), the known-good line states how a REAL
+  // emergency order would reach you, and the tokens are the tell-tale signs to
+  // select. Framed honestly as "select the signs this is fake."
   spot_the_deepfake: {
     type: 'spot_the_phish',
     attackType: 'AI Exploitation / Deepfake Disinformation',
     config: {
       instructions:
-        'A viral "emergency" video of an official is going around. Click every ' +
-        'red flag that suggests it is an AI deepfake, then submit.',
-      from: 'Posted by: @breaking_alerts_2am (unverified account)',
-      subject: 'Clip: "County orders immediate evacuation — share now!"',
+        'A viral "emergency" video of a county official is spreading on social ' +
+        'media. Review the post below and select every sign that it is an AI ' +
+        'deepfake / disinformation, then submit.',
+      // Known-good reference so "it\u2019s not on official channels" is a fair,
+      // checkable tell rather than a guess.
+      knownGood:
+        'What you already know: a real emergency order is published on the ' +
+        'county\u2019s official website and verified alert channels — never only on ' +
+        'an anonymous social post.',
+      fromLabel: 'Source',
+      subjectLabel: 'Claim',
+      from: '@breaking_alerts_2am (unverified account, created today)',
+      subject: '"County orders immediate evacuation — share now!"',
       tokens: [
         { id: 't1', text: 'Posted only by an unverified, brand-new account' },
-        { id: 't2', text: 'Not on any official county channel or website' },
+        { id: 't2', text: 'Appears on no official county channel or website' },
         { id: 't3', text: 'Mouth movements and audio are slightly out of sync' },
-        { id: 't4', text: 'Urges you to "share now" before verifying' },
-        { id: 't5', text: 'The official is a real person who exists' },
+        { id: 't4', text: 'Pressures you to "share now" before verifying' },
+        { id: 't5', text: 'The official shown is a real, well-known person' },
       ],
     },
     answer: { suspicious: ['t1', 't2', 't3', 't4'] },
@@ -280,9 +304,11 @@ const MINIGAMES = {
       good: {
         effects: [{ key: 'integrity', amount: 3 }],
         outcome:
-          'Good eye on most red flags. The strongest tell is simple: a real ' +
+          'Good eye on most of the signs. The strongest tell is simple: a real ' +
           'emergency order appears on official, authenticated channels — not ' +
-          'only on an anonymous account.',
+          'only on an anonymous account. (And note: the official being a real ' +
+          'person does NOT make the clip real — that is exactly what a deepfake ' +
+          'impersonates.)',
       },
       fail: {
         effects: [{ key: 'integrity', amount: -18 }, { key: 'morale', amount: -5 }],

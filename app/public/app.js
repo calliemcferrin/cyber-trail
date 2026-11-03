@@ -779,8 +779,8 @@
       }
       wrap.appendChild(el('div', { class: 'mg-email' }, [
         el('div', { class: 'mg-email-head' }, [
-          el('div', {}, [el('span', { class: 'mg-label', text: 'From: ' }), el('span', { class: 'mg-tok', 'data-id': 'from', text: cfg.from })]),
-          el('div', {}, [el('span', { class: 'mg-label', text: 'Subject: ' }), el('span', { class: 'mg-tok', 'data-id': 'subject', text: cfg.subject })]),
+          el('div', {}, [el('span', { class: 'mg-label', text: (cfg.fromLabel || 'From') + ': ' }), el('span', { class: 'mg-tok', 'data-id': 'from', text: cfg.from })]),
+          el('div', {}, [el('span', { class: 'mg-label', text: (cfg.subjectLabel || 'Subject') + ': ' }), el('span', { class: 'mg-tok', 'data-id': 'subject', text: cfg.subject })]),
         ]),
         el('div', { class: 'mg-tokens' },
           cfg.tokens.map((t) => {
