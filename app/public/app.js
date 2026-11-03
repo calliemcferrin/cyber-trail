@@ -138,11 +138,9 @@
       ]),
       el('div', { class: 'panel' }, [
         el('p', { class: 'prompt-text', text:
-          'The year is now. You are responsible for guiding a piece of critical ' +
-          'infrastructure through a gauntlet of cyber threats. Like the pioneers ' +
-          'of old, your journey is full of hazards — but yours are phishing emails, ' +
-          'ransomware, and insider threats instead of dysentery and broken axles. ' +
-          'Choose your facility. Choose your role. Make smart decisions. Survive.' }),
+          'Guide a critical-infrastructure facility through a gauntlet of real ' +
+          'cyber threats. Pick a facility, pick a role, make the right calls — ' +
+          'and survive the trail.' }),
         el('div', { class: 'btn-row' }, [
           el('button', { class: 'btn', onClick: startFlow, text: '▶ Begin Journey' }),
         ]),
@@ -168,13 +166,15 @@
   function facilityScreen() {
     render([
       el('p', { class: 'eyebrow', text: '// STEP 1 OF 2 — SELECT FACILITY' }),
-      el('h2', { class: 'subtitle', text: 'Which critical infrastructure will you defend?' }),
+      el('h2', { class: 'subtitle', text: 'Choose a facility' }),
       el('div', { class: 'card-grid' },
         state.facilities.map((fac) =>
           el('button', { class: 'card', onClick: () => { state.facilityId = fac.id; roleScreen(); } }, [
             el('div', { class: 'tag', text: fac.sector }),
             el('h3', { text: fac.name }),
-            el('p', { text: fac.description }),
+            // Short blurb keeps the selection screen scannable; full description
+            // still lives in the data for anywhere that wants it.
+            el('p', { text: fac.blurb || fac.description }),
           ]),
         ),
       ),
@@ -184,13 +184,13 @@
   function roleScreen() {
     render([
       el('p', { class: 'eyebrow', text: '// STEP 2 OF 2 — SELECT ROLE' }),
-      el('h2', { class: 'subtitle', text: 'Whose eyes will you see the threats through?' }),
+      el('h2', { class: 'subtitle', text: 'Choose your role' }),
       el('div', { class: 'card-grid' },
         state.roles.map((role) =>
           el('button', { class: 'card', onClick: () => beginGame(role.id) }, [
             el('div', { class: 'tag', text: role.tagline }),
             el('h3', { text: role.name }),
-            el('p', { text: role.description }),
+            el('p', { text: role.blurb || role.description }),
           ]),
         ),
       ),

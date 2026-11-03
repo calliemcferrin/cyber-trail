@@ -13,6 +13,7 @@ const FACILITIES = {
     name: 'Blackwater Municipal Water Treatment',
     sector: 'Water & Wastewater Systems',
     tagline: 'Keep the city hydrated. Keep the chemicals in balance.',
+    blurb: 'Aging SCADA systems. One tampered setpoint can poison a city\u2019s water.',
     description:
       'A mid-sized municipal water treatment plant running aging SCADA ' +
       'systems. A single tampered setpoint can poison a water supply — as ' +
@@ -27,6 +28,7 @@ const FACILITIES = {
     name: 'Grid North Regional Electric',
     sector: 'Energy',
     tagline: 'Keep the lights on across three counties.',
+    blurb: 'Substations and a control center. Keep three counties powered.',
     description:
       'A regional electric utility operating substations and a control ' +
       'center. In 2015, attackers used BlackEnergy malware to black out ' +
@@ -39,6 +41,7 @@ const FACILITIES = {
     name: 'St. Mercy Regional Medical Center',
     sector: 'Healthcare & Public Health',
     tagline: 'Keep patients alive. Keep their records safe.',
+    blurb: 'The #1 ransomware target. Here, downtime can cost lives.',
     description:
       'A busy regional hospital full of connected medical devices, electronic ' +
       'health records, and life-critical systems. Healthcare is the single ' +
@@ -52,6 +55,7 @@ const FACILITIES = {
     name: 'Cascade Natural Gas Pipeline Co.',
     sector: 'Energy (Natural Gas Pipeline)',
     tagline: 'Keep the gas flowing. Keep the pressure safe.',
+    blurb: 'IT and operations entwined — the Colonial Pipeline lesson.',
     description:
       'An interstate natural gas pipeline operator running compressor ' +
       'stations, SCADA, and a corporate IT network that is increasingly ' +
@@ -66,6 +70,7 @@ const FACILITIES = {
     name: 'Capitol County Government Services',
     sector: 'Government Facilities',
     tagline: 'Serve the public. Guard the public\u2019s trust.',
+    blurb: 'Social engineering and AI deepfakes. The battlefield is human trust.',
     description:
       'A county government office handling citizen records, benefits, ' +
       'elections support, and public communications. Government bodies are ' +
@@ -82,6 +87,7 @@ const ROLES = {
     id: 'employee',
     name: 'Entry-Level Employee',
     tagline: 'The human firewall on the ground floor.',
+    blurb: 'First line of defense. Spot phishing and social engineering.',
     description:
       'You are the first line of defense. Most breaches start with a person, ' +
       'not a machine. Learn to spot social engineering, phishing, and the ' +
@@ -91,6 +97,7 @@ const ROLES = {
     id: 'operator',
     name: 'Cyber Operator',
     tagline: 'Hands on the keyboard in the SOC.',
+    blurb: 'Detect, triage, respond. Contain incidents before they spread.',
     description:
       'You detect, triage, and respond. Alerts are flooding in and not all of ' +
       'them matter. Learn to contain incidents, patch wisely, and segment ' +
@@ -100,6 +107,7 @@ const ROLES = {
     id: 'supervisor',
     name: 'Supervisor',
     tagline: 'The buck stops at your desk.',
+    blurb: 'Budget, policy, people. Balance risk and secure the funding.',
     description:
       'You control budget, policy, and people. Every dollar spent on defense ' +
       'is a dollar not spent elsewhere. Learn to balance risk, build a ' +
