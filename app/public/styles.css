@@ -506,9 +506,28 @@ body::before {
   background: rgba(91,255,122,0.12); padding: 0.15rem 0.5rem; border-radius: 3px;
 }
 .term-explain { color: var(--dim); font-size: 0.95rem; line-height: 1.55; margin-top: 0.4rem; }
+/* Tap-to-run palette: larger, clearly-tappable command buttons. Used as the
+   primary input on touch devices so the terminal is playable without typing. */
+.term-palette-tap { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.3rem; }
+.term-palette-tap .term-pal-btn {
+  font-size: 0.95rem;
+  padding: 0.6rem 0.8rem;
+  min-height: 44px;            /* comfortable touch target */
+  background: rgba(20,26,38,0.95);
+  border-color: rgba(77,181,255,0.55);
+}
+.term-palette-tap .term-pal-btn:active { background: rgba(91,255,122,0.18); color: var(--green); }
+
 @media (max-width: 600px) {
   .term-levels { grid-template-columns: 1fr; }
   .term-screen { height: 190px; font-size: 0.82rem; }
+  /* On phones the tap palette is the main way in; make buttons full-ish width
+     and the typed-input row visually secondary. */
+  .term-palette-tap { gap: 0.45rem; }
+  .term-palette-tap .term-pal-btn { flex: 1 1 100%; text-align: left; }
+  .term-input-row { opacity: 0.85; }
+  /* Import-terminal resize handle is fiddly on touch; give it more height. */
+  .term-resize { height: 16px; }
 }
 .term-import-screen { height: 160px; }
 
@@ -610,8 +629,12 @@ img, svg { max-width: 100%; height: auto; }
 
   .panel { padding: 1.1rem 1.1rem; }
 
-  /* Resource HUD: 2x2 grid on phones (was cramped at 4-across). */
-  .hud { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  /* Resource HUD: the rail stacks above the main panel on narrow screens
+     (see .game-layout). Lay the four meters out 2-across so they stay compact
+     rather than a tall single column pushing the scenario down the page. */
+  .hud { flex-direction: row; flex-wrap: wrap; gap: 0.6rem; }
+  .hud .meter { flex: 1 1 45%; }
+  .hud-title { flex: 1 1 100%; }
 
   /* Comfortable tap targets. */
   .btn { display: block; width: 100%; text-align: center; padding: 0.9rem 1rem; }
@@ -628,7 +651,7 @@ img, svg { max-width: 100%; height: auto; }
 
 /* Very small phones */
 @media (max-width: 380px) {
-  .hud { grid-template-columns: 1fr; }
+  .hud .meter { flex: 1 1 100%; } /* single column when truly narrow */
   .stage-bar { font-size: 0.82rem; }
 }
 

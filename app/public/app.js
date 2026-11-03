@@ -923,7 +923,8 @@
       const helpBox = el('div', { class: 'term-help' });
       const inputRow = el('div', { class: 'term-input-row' });
       const input = el('input', { class: 'term-input', type: 'text', autocomplete: 'off',
-        spellcheck: 'false', placeholder: 'type a command and press Enter' });
+        autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false',
+        placeholder: isMobile() ? 'tap a command above, or type here' : 'type a command and press Enter' });
       const promptSpan = el('span', { class: 'term-prompt', text: cfg.prompt + ' ' });
 
       function print(line, cls) {
@@ -951,28 +952,58 @@
         input.focus();
       }
 
+      // A palette of candidate commands rendered as large tap targets. Tapping
+      // one RUNS it (no keyboard needed) — this is what makes the terminal
+      // playable on a phone. `tapRuns` true = submit on tap; false = just fill
+      // the input (desktop convenience). Grading is identical either way (the
+      // server classifies whatever command is submitted).
+      function commandPalette(s, tapRuns) {
+        return el('div', { class: 'term-palette' + (tapRuns ? ' term-palette-tap' : '') },
+          (s.palette || []).map((c) =>
+            el('button', {
+              class: 'term-pal-btn',
+              onClick: () => {
+                if (tapRuns) { runCommand(c); }
+                else { input.value = c; input.focus(); }
+              },
+            }, [c]),
+          ),
+        );
+      }
+
       function renderHelp(s) {
         const lvl = effectiveLevel();
+        // On touch devices, tapping a command should RUN it (typing a full Linux
+        // command on a soft keyboard is impractical). On desktop, the palette
+        // fills the input so people can still type/edit, except in guided mode
+        // where tapping-to-run is a nice accessibility convenience.
+        const tapRuns = isMobile();
         helpBox.textContent = '';
         if (lvl === 'guided') {
           helpBox.appendChild(el('div', { class: 'term-guide' }, [
             el('div', {}, [el('span', { class: 'term-cmd-hint', text: s.canonical })]),
             el('div', { class: 'term-explain', text: s.explain }),
           ]));
+          // Tap-to-run palette so a phone user can answer without typing.
+          helpBox.appendChild(el('div', { class: 'term-help-row' }, [
+            el('span', { class: 'mg-label', text: isMobile() ? 'tap to run: ' : 'or tap: ' }),
+            commandPalette(s, tapRuns || true /* guided always tap-runs */),
+          ]));
         } else if (lvl === 'comfortable') {
-          const pal = el('div', { class: 'term-palette' },
-            (s.palette || []).map((c) =>
-              el('button', { class: 'term-pal-btn', onClick: () => { input.value = c; input.focus(); } }, [c]),
-            ),
-          );
           const reveal = el('button', { class: 'term-reveal', onClick: () => {
             if (reveals.indexOf(s.id) < 0) reveals.push(s.id);
-            input.value = s.canonical;
-            input.focus();
-            print('(revealed: ' + s.canonical + ')', 'term-dim');
-          }, text: 'reveal answer' });
+            if (isMobile()) {
+              print('(revealed: ' + s.canonical + ')', 'term-dim');
+              runCommand(s.canonical);
+            } else {
+              input.value = s.canonical;
+              input.focus();
+              print('(revealed: ' + s.canonical + ')', 'term-dim');
+            }
+          }, text: isMobile() ? 'reveal & run answer' : 'reveal answer' });
           helpBox.appendChild(el('div', { class: 'term-help-row' }, [
-            el('span', { class: 'mg-label', text: 'commands: ' }), pal,
+            el('span', { class: 'mg-label', text: tapRuns ? 'tap to run: ' : 'commands: ' }),
+            commandPalette(s, tapRuns),
           ]));
           helpBox.appendChild(reveal);
           if (downgraded) {
@@ -980,13 +1011,22 @@
               '⚠ Help mode on — your ceiling for this challenge is now GOOD (not perfect).' }));
           }
         } else {
-          // expert: no hints, but offer the option to drop a difficulty.
+          // expert: bare prompt on desktop. On a phone, typing isn't practical,
+          // so expert still shows a tap-to-run palette (the challenge is that
+          // it's unlabeled — no explanation, no reveal — unless you drop down).
+          if (isMobile()) {
+            helpBox.appendChild(el('div', { class: 'term-help-row' }, [
+              el('span', { class: 'mg-label', text: 'tap to run: ' }),
+              commandPalette(s, true),
+            ]));
+          }
+          // offer the option to drop a difficulty for hints.
           const drop = el('button', { class: 'term-drop', onClick: () => {
             if (downgraded) return;
             downgraded = true;
             print('⚠ dropped to COMFORTABLE — hints enabled; max score is now GOOD.', 'term-dim');
             renderHelp(s);
-            input.focus();
+            if (!isMobile()) input.focus();
           }, text: 'stuck? drop to Comfortable (hints on · caps score at GOOD)' });
           helpBox.appendChild(drop);
         }
@@ -1007,10 +1047,12 @@
         }
       }
 
-      async function submitLine() {
-        const s = steps[idx];
-        const raw = input.value.trim();
+      // Run a command for the current step — shared by the Enter key (typed)
+      // and by tapping a command button (mobile-friendly, no keyboard needed).
+      async function runCommand(raw) {
+        raw = (raw || '').trim();
         if (!raw) return;
+        const s = steps[idx];
         print(cfg.prompt + ' ' + raw);
         attempts[s.id].push(raw);
         input.disabled = true;
@@ -1031,10 +1073,14 @@
         } else {
           const lvl = effectiveLevel();
           print('Hmm, that didn\u2019t surface what you need. Try another command'
-            + (lvl === 'expert' ? '.' : (lvl === 'comfortable' ? ' (or use the palette / reveal).' : ' — check the suggested command above.')), 'term-dim');
+            + (lvl === 'expert' ? '.' : (lvl === 'comfortable' ? ' (or tap a command / reveal).' : ' — check the suggested command above.')), 'term-dim');
         }
+        input.value = '';
         input.focus();
       }
+
+      // Enter-key handler: read the typed input and run it.
+      function submitLine() { runCommand(input.value); }
 
       function finish() {
         print('— investigation complete —', 'term-ok');
