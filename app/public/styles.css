@@ -788,3 +788,19 @@ img, svg { max-width: 100%; height: auto; }
   line-height: 1.5;
 }
 .glossary-use-label { color: var(--purple); font-weight: 700; }
+
+/* ---------------------------- spot-the-phish: known-good reference ---------------------------- */
+/* A "what you already know is legitimate" note shown above the suspicious
+   message, so look-alike red flags (e.g. a .co vs .com domain) are fairly
+   detectable by comparison rather than by guessing. */
+.mg-knowngood {
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--green);
+  background: rgba(16, 28, 22, 0.6);
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  text-align: left;
+}
+.mg-knowngood-mark { color: var(--green); font-weight: 700; }

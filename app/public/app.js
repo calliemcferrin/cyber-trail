@@ -769,6 +769,14 @@
     const state2 = { selected: {}, assignments: {}, order: null };
 
     if (mg.type === 'spot_the_phish') {
+      // Optional "known-good" reference, so look-alike red flags are detectable
+      // (you compare against what you already know is legitimate).
+      if (cfg.knownGood) {
+        wrap.appendChild(el('div', { class: 'mg-knowngood' }, [
+          el('span', { class: 'mg-knowngood-mark', text: '✓ ' }),
+          cfg.knownGood,
+        ]));
+      }
       wrap.appendChild(el('div', { class: 'mg-email' }, [
         el('div', { class: 'mg-email-head' }, [
           el('div', {}, [el('span', { class: 'mg-label', text: 'From: ' }), el('span', { class: 'mg-tok', 'data-id': 'from', text: cfg.from })]),

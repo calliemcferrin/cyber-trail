@@ -29,42 +29,47 @@ const MINIGAMES = {
       instructions:
         'Click every suspicious element in this email, then submit. Find the ' +
         'red flags a phishing message hides.',
+      // Known-good reference so the look-alike sender is actually DETECTABLE —
+      // the player can compare against the real domain instead of guessing.
+      knownGood:
+        'What you already know: your real billing vendor\u2019s domain is ' +
+        '"blackwater-billing.com", and legitimate invoices address you by name.',
       from: 'Accounts Payable <billing@blackwater-billing.co>',
-      subject: 'URGENT: unpaid invoice — act within 2 hours',
+      subject: 'unpaid invoice — act within 2 hours or your account is suspended',
       // Each token has an id; "suspicious" ones are the answer key (hidden).
       tokens: [
         { id: 't1', text: 'billing@blackwater-billing.co' },
-        { id: 't2', text: 'URGENT' },
-        { id: 't3', text: 'within 2 hours or your account is suspended' },
+        { id: 't3', text: 'act within 2 hours or your account is suspended' },
         { id: 't4', text: 'Dear Valued Customer' },
         { id: 't5', text: 'Click here to view your invoice' },
         { id: 't6', text: 'Thank you for your business' },
       ],
     },
     answer: {
-      suspicious: ['t1', 't2', 't3', 't4', 't5'], // 5 of 6 are red flags
+      suspicious: ['t1', 't3', 't4', 't5'], // 4 of 5 are red flags
     },
     grades: {
       perfect: {
         effects: [{ key: 'integrity', amount: 8 }, { key: 'morale', amount: 2 }],
         outcome:
-          'You caught the look-alike domain, the manufactured urgency, the ' +
-          'generic greeting, and the deceptive link — then reported it. A ' +
-          'textbook catch that protects everyone.',
+          'You caught the look-alike domain (".co" vs the real ".com"), the ' +
+          'manufactured urgency backed by a threat, the generic greeting, and ' +
+          'the deceptive link — then reported it. A textbook catch that ' +
+          'protects everyone.',
       },
       good: {
         effects: [{ key: 'integrity', amount: 3 }],
         outcome:
           'You spotted most of the red flags — enough to be suspicious and not ' +
-          'click. Train your eye on the ones you missed (the sender domain is ' +
-          'the biggest tell).',
+          'click. The biggest tell: compare the sender to the domain you know ' +
+          'is real ("blackwater-billing.com") and the ".co" look-alike stands out.',
       },
       fail: {
         effects: [{ key: 'integrity', amount: -20 }, { key: 'morale', amount: -4 }],
         outcome:
           'You missed the red flags that mattered. This is exactly the message ' +
-          'that harvests credentials — the mismatched domain, the urgency, and ' +
-          'the link were the giveaways.',
+          'that harvests credentials — the mismatched domain (".co", not the ' +
+          'real ".com"), the urgency-plus-threat, and the link were the giveaways.',
       },
     },
   },
