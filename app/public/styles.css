@@ -871,3 +871,29 @@ img, svg { max-width: 100%; height: auto; }
 .meter-why-eff.neg { color: var(--red); font-weight: 700; }
 .meter-why-tag { color: var(--blue); font-weight: 700; }
 .meter-why-note { margin: 0.55rem 0 0; color: var(--dim); font-size: 0.86rem; line-height: 1.45; }
+
+/* ---------------------------- guided-mode walkthrough drop-down ---------------------------- */
+/* In "New to Linux" mode the answer (canonical command + explanation) is hidden
+   behind this collapsed drop-down so the player reads the task first. Opening it
+   is free (no score penalty) — guided mode is meant to be fully helpful. */
+.term-walkthrough {
+  margin: 0.3rem 0 0.6rem;
+  border: 1px solid rgba(91, 255, 122, 0.35);
+  border-left: 3px solid var(--green);
+  background: rgba(10, 16, 24, 0.5);
+  border-radius: 3px;
+}
+.term-walkthrough > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--green);
+  user-select: none;
+}
+.term-walkthrough > summary::-webkit-details-marker { display: none; }
+.term-walkthrough > summary::before { content: "▸ "; }
+.term-walkthrough[open] > summary::before { content: "▾ "; }
+.term-walkthrough > summary:hover { color: var(--green-soft); }
+.term-walkthrough .term-guide { border-left: none; padding: 0 0.75rem 0.7rem; }

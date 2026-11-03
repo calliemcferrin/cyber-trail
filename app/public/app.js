@@ -1056,11 +1056,23 @@
         const tapRuns = isMobile();
         helpBox.textContent = '';
         if (lvl === 'guided') {
-          helpBox.appendChild(el('div', { class: 'term-guide' }, [
-            el('div', {}, [el('span', { class: 'term-cmd-hint', text: s.canonical })]),
-            el('div', { class: 'term-explain', text: s.explain }),
+          // The walkthrough (the canonical command + its explanation) is the
+          // answer, so it stays hidden behind a collapsed drop-down until the
+          // player chooses to reveal it — this makes them read the fresh task
+          // first. Opening it carries NO penalty: the whole point of guided
+          // mode is that help is free and a perfect score is still reachable.
+          // Collapsed by default, and it resets closed on each new step because
+          // renderHelp rebuilds it every time.
+          helpBox.appendChild(el('details', { class: 'term-walkthrough' }, [
+            el('summary', { text: 'Show the walkthrough for this step' }),
+            el('div', { class: 'term-guide' }, [
+              el('div', {}, [el('span', { class: 'term-cmd-hint', text: s.canonical })]),
+              el('div', { class: 'term-explain', text: s.explain }),
+            ]),
           ]));
-          // Tap-to-run palette so a phone user can answer without typing.
+          // Tap-to-run palette stays visible so a phone user can answer by
+          // tapping without opening the walkthrough (the palette includes
+          // distractors, so it is not itself the answer).
           helpBox.appendChild(el('div', { class: 'term-help-row' }, [
             el('span', { class: 'mg-label', text: isMobile() ? 'tap to run: ' : 'or tap: ' }),
             commandPalette(s, tapRuns || true /* guided always tap-runs */),
