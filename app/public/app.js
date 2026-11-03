@@ -178,18 +178,19 @@
           'The next screen is a terminal — a text prompt where you load your ' +
           'game data by typing a command. It works like a real command line: ' +
           'type the command, then press Enter.' }),
-        el('p', { class: 'intro-step', text: '1. Type the import command exactly like this:' }),
+        el('p', { class: 'intro-step', text: '1. Build the import command in this order:' }),
         el('div', { class: 'intro-cmd' }, [
-          el('code', { text: 'import ' + fac + ' --' + role }),
+          el('code', { text: 'import <facility> --<role>' }),
         ]),
         el('p', { class: 'meta', text:
-          'Tip: in the usage line you\u2019ll see ' +
-          'import <facility> --<role>. The <> are placeholders — type the real ' +
-          'values shown (facility "' + fac + '", role "' + role + '"), NOT the angle brackets.' }),
+          'The command is always: the word "import", then your facility, then ' +
+          '"--" immediately followed by your role. The <> are placeholders — the ' +
+          'terminal shows your actual facility and role; read them off the screen ' +
+          'and fill them in yourself (don\u2019t type the angle brackets).' }),
         gate
           ? el('p', { class: 'intro-step', text:
               '2. Then you\u2019ll be asked for an access code (a themed puzzle — a ' +
-              'hint is shown). Type it and press Enter.' })
+              'hint is shown on the terminal). Work it out and type it, then Enter.' })
           : null,
         el('p', { class: 'intro-note', text:
           'Handy commands in the terminal: type "clear" to wipe the screen and ' +
@@ -271,10 +272,7 @@
     const pinned = el('div', { class: 'term-pinned' }, [
       el('div', { class: 'term-pinned-title', text: 'cyber-trail // mission loader' }),
       el('div', { class: 'term-pinned-line', text: 'usage: import <facility> --<role>   (<> are placeholders — don\u2019t type the brackets)' }),
-      el('div', { class: 'term-pinned-line' }, [
-        el('span', { class: 'term-dim', text: 'example: ' }),
-        el('span', { class: 'term-ok', text: 'import ' + fac + ' --' + role }),
-      ]),
+      el('div', { class: 'term-pinned-line term-dim', text: 'order: import · then your facility · then --your role (use the values shown below)' }),
       el('div', { class: 'term-pinned-line term-dim', text: 'type "clear" to reset the screen · drag the bottom edge to resize' }),
     ]);
 
@@ -388,9 +386,11 @@
         norm === normalize('import ' + fac + ' -' + role);
       if (!ok) {
         if (norm.indexOf('import') !== 0) {
-          print("command not found: " + raw.split(' ')[0] + ' — try: import ' + fac + ' --' + role, 'term-dim');
+          print("command not found: " + raw.split(' ')[0] +
+            ' — start with "import", then your facility and --your role (see the values above).', 'term-dim');
         } else {
-          print("import: unknown target — usage: import <facility> --<role> (import " + fac + ' --' + role + ')', 'term-dim');
+          print('import: that doesn\u2019t match — usage: import <facility> --<role>. ' +
+            'Check the facility and role shown above and fill them in (no angle brackets).', 'term-dim');
         }
         input.value = '';
         input.focus();
